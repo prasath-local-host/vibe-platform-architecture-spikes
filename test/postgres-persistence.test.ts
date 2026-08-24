@@ -1,0 +1,220 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Kysely } from "kysely";
+import { ApplicationService } from "../src/application-service.js";
+import { AssessmentService, AssessmentWorker } from "../src/assessment-service.js";
+import { createDatabase, type Database } from "../src/database.js";
+import type { Actor } from "../src/domain.js";
+import { migrateToLatest } from "../src/migrations.js";
+import {
+  PostgresApplicationRepository,
+  PostgresAuditRepository,
+} from "../src/postgres-repositories.js";
+import { PostgresAuthorizationRepository } from "../src/postgres-authorization-repository.js";
+import { PostgresAssessmentRepository } from "../src/postgres-assessment-repository.js";
+
+const databaseUrl = process.env.TEST_DATABASE_URL;
+const companyA: Actor = {
+  subject: "postgres-user-a",
+  role: "company-user",
+  companyId: "postgres-company-a",
+};
+
+describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
+  let db: Kysely<Database>;
+
+  beforeAll(async () => {
+    db = createDatabase(databaseUrl!);
+    await migrateToLatest(db);
+    await db.deleteFrom("audit_events").execute();
+    await db.deleteFrom("assessments").execute();
+    await db.deleteFrom("applications").execute();
+    await db.deleteFrom("platform_roles").execute();
+    await db.deleteFrom("company_memberships").execute();
+    await db.deleteFrom("companies").execute();
+  });
+
+  afterAll(async () => {
+    await db.destroy();
+  });
+
+  function service() {
+    return new ApplicationService(
+      new PostgresApplicationRepository(db),
+      new PostgresAuditRepository(db),
+    );
+  }
+
+  it("persists applications and audit evidence across service restarts", async () => {
+    await service().register({
+      actor: companyA,
+      companyId: "postgres-company-a",
+      name: "Persistent application",
+      repositoryUrl: "https://example.test/persistent",
+      idempotencyKey: "persistent-request",
+      correlationId: "persistent-correlation",
+    });
+
+    expect(await service().list(companyA, "postgres-company-a")).toMatchObject([
+      { name: "Persistent application", companyId: "postgres-company-a" },
+    ]);
+    expect(
+      await new PostgresAuditRepository(db).listByCompany("postgres-company-a"),
+    ).toMatchObject([
+      {
+        actorSubject: "postgres-user-a",
+        action: "application.registered",
+        correlationId: "persistent-correlation",
+      },
+    ]);
+  });
+
+  it("uses the database uniqueness constraint under concurrent duplicate commands", async () => {
+    const command = {
+      actor: companyA,
+      companyId: "postgres-company-a",
+      name: "Concurrent application",
+      repositoryUrl: "https://example.test/concurrent",
+      idempotencyKey: "concurrent-request",
+      correlationId: "concurrent-correlation",
+    } as const;
+
+    const registrations = await Promise.all([
+      service().register(command),
+      service().register(command),
+      service().register(command),
+    ]);
+
+    expect(new Set(registrations.map((application) => application.id)).size).toBe(1);
+    const audits = await new PostgresAuditRepository(db).listByCompany(
+      "postgres-company-a",
+    );
+    expect(
+      audits.filter((event) => event.entityId === registrations[0]!.id),
+    ).toHaveLength(1);
+  });
+
+  it("rolls back the application when its audit event cannot be persisted", async () => {
+    await expect(
+      service().register({
+        actor: companyA,
+        companyId: "postgres-company-a",
+        name: "Must roll back",
+        repositoryUrl: "https://example.test/rollback",
+        idempotencyKey: "rollback-request",
+        correlationId: "x".repeat(161),
+      }),
+    ).rejects.toBeDefined();
+
+    expect(
+      (await service().list(companyA, "postgres-company-a")).some(
+        (application) => application.idempotencyKey === "rollback-request",
+      ),
+    ).toBe(false);
+  });
+
+  it("enforces persisted company grants and immediate revocation", async () => {
+    await db
+      .insertInto("companies")
+      .values({
+        id: "postgres-company-a",
+        display_name: "PostgreSQL Company A",
+        created_at: new Date().toISOString(),
+      })
+      .onConflict((conflict) => conflict.column("id").doNothing())
+      .execute();
+    await db
+      .insertInto("company_memberships")
+      .values({
+        company_id: "postgres-company-a",
+        subject: "postgres-member",
+        role: "company-user",
+        active: true,
+        created_at: new Date().toISOString(),
+      })
+      .execute();
+    const authorization = new PostgresAuthorizationRepository(db);
+
+    expect(
+      await authorization.hasCompanyAccess(
+        "postgres-member",
+        "postgres-company-a",
+      ),
+    ).toBe(true);
+    expect(
+      await authorization.hasCompanyAccess("postgres-member", "company-b"),
+    ).toBe(false);
+    expect(await authorization.isPlatformOperator("postgres-member")).toBe(false);
+
+    await db
+      .updateTable("company_memberships")
+      .set({ active: false })
+      .where("company_id", "=", "postgres-company-a")
+      .where("subject", "=", "postgres-member")
+      .execute();
+    expect(
+      await authorization.hasCompanyAccess(
+        "postgres-member",
+        "postgres-company-a",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps persisted platform roles separate from company memberships", async () => {
+    await db
+      .insertInto("platform_roles")
+      .values({
+        subject: "postgres-operator",
+        role: "operator",
+        active: true,
+        created_at: new Date().toISOString(),
+      })
+      .execute();
+    const authorization = new PostgresAuthorizationRepository(db);
+
+    expect(await authorization.isPlatformOperator("postgres-operator")).toBe(true);
+    expect(
+      await authorization.hasCompanyAccess(
+        "postgres-operator",
+        "postgres-company-a",
+      ),
+    ).toBe(false);
+  });
+
+  it("persists queued assessments and completes them after a worker restart", async () => {
+    const application = await service().register({
+      actor: companyA,
+      companyId: "postgres-company-a",
+      name: "Assessed application",
+      repositoryUrl: "https://example.test/assessed",
+      idempotencyKey: "assessed-application",
+      correlationId: "application-correlation",
+    });
+    const repository = new PostgresAssessmentRepository(db);
+    const assessments = new AssessmentService(repository);
+    const submitted = await assessments.submit({
+      actor: companyA,
+      companyId: "postgres-company-a",
+      applicationId: application.id,
+      idempotencyKey: "postgres-assessment",
+      correlationId: "postgres-assessment-correlation",
+    });
+
+    const restartedRepository = new PostgresAssessmentRepository(db);
+    await new AssessmentWorker("postgres-worker", restartedRepository).tick();
+    expect(
+      await new AssessmentService(restartedRepository).get(
+        companyA,
+        "postgres-company-a",
+        submitted.id,
+      ),
+    ).toMatchObject({ status: "completed", attempts: 1 });
+
+    const events = await new PostgresAuditRepository(db).listByCompany(
+      "postgres-company-a",
+    );
+    expect(events.filter((event) => event.entityId === submitted.id)).toMatchObject([
+      { action: "assessment.queued", correlationId: "postgres-assessment-correlation" },
+      { action: "assessment.completed", correlationId: "postgres-assessment-correlation" },
+    ]);
+  });
+});

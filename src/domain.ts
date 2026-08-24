@@ -22,9 +22,29 @@ export interface AuditEvent {
   readonly actorRole: Role;
   readonly companyId: string;
   readonly action: string;
-  readonly entityType: "application";
+  readonly entityType: "application" | "assessment";
   readonly entityId: string;
   readonly correlationId: string;
+}
+
+export type AssessmentStatus = "queued" | "running" | "completed" | "failed";
+
+export interface Assessment {
+  readonly id: string;
+  readonly companyId: string;
+  readonly applicationId: string;
+  readonly idempotencyKey: string;
+  readonly correlationId: string;
+  readonly status: AssessmentStatus;
+  readonly attempts: number;
+  readonly result?: {
+    readonly profile: string;
+    readonly findings: readonly string[];
+  };
+  readonly error?: string;
+  readonly createdAt: string;
+  readonly startedAt?: string;
+  readonly completedAt?: string;
 }
 
 export class ForbiddenError extends Error {
@@ -37,4 +57,3 @@ export function requireCompanyAccess(actor: Actor, companyId: string): void {
   if (actor.role === "operator") return;
   if (!actor.companyId || actor.companyId !== companyId) throw new ForbiddenError();
 }
-

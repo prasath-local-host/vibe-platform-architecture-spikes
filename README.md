@@ -4,7 +4,7 @@ Evidence-producing experiments for the Vibe Coding Platform architecture. This r
 
 ## Current work
 
-`VIBE-2` validates the smallest control-plane vertical slice. The first checkpoint proves company-scoped authorization, idempotent application registration and attributable audit evidence. Synthetic request headers are deliberately temporary; federated identity and PostgreSQL persistence remain required before the spike can reach a decision.
+`VIBE-2` validates the smallest control-plane vertical slice. The current checkpoint proves company-scoped authorization, transactionally idempotent PostgreSQL writes, a restart-safe asynchronous assessment queue, and attributable audit evidence. Synthetic request headers are deliberately temporary; federated identity remains required before the spike can reach a decision.
 
 ## Run
 
@@ -15,10 +15,39 @@ pnpm test
 pnpm typecheck
 pnpm build
 docker compose up -d postgres
+pnpm db:migrate
+TEST_DATABASE_URL=postgres://vibe:vibe-development-only@localhost:5432/vibe_control pnpm test
 pnpm dev
 ```
 
 The API binds to `127.0.0.1:3000`. Never expose the synthetic-header authentication mechanism beyond the local spike environment.
+
+Without `DATABASE_URL`, the API uses the in-memory adapter for local unit-level exploration. With `DATABASE_URL`, startup applies the versioned Kysely migrations and uses PostgreSQL. Registration inserts the application and audit event in one transaction; the unique `(company_id, idempotency_key)` constraint is the final concurrency boundary.
+
+## Minimal asynchronous assessment
+
+Submit work with `POST /companies/:companyId/applications/:applicationId/assessments` and an `idempotencyKey` body. The API returns HTTP 202 with a `queued` assessment. Use `GET` on the collection or `GET .../assessments/:assessmentId` to observe progress.
+
+The embedded worker claims rows with PostgreSQL `FOR UPDATE SKIP LOCKED`, processes at most ten per cycle, and records correlated completion or failure audit evidence. Queued work survives process restarts; running work becomes claimable again after five minutes. Set `ASSESSMENT_WORKER_ENABLED=false` when a process should serve only HTTP traffic, or give a worker a stable `ASSESSMENT_WORKER_ID` for diagnostics. The assessment result is intentionally a placeholder—the spike validates the delivery boundary, not a production analysis engine.
+
+## Identity boundary
+
+The control plane separates authentication from authorization:
+
+1. An `AccessTokenVerifier` adapter verifies issuer, signature, audience, expiry and subject for the selected identity provider.
+2. VCP uses only the verified issuer/subject as the external identity key.
+3. An `AuthorizationRepository` loads active platform roles and company memberships from VCP-controlled storage.
+4. `IdentityService` derives the actor for the requested company. Tenant identifiers or privileged roles supplied by the browser or untrusted token claims are not accepted as authorization.
+
+The included `SpikeAccessTokenVerifier` accepts only `Authorization: Bearer spike:<subject>` and is disabled by default. It must never be enabled outside a local, isolated spike environment. For an in-memory local run, grants can be supplied explicitly:
+
+```powershell
+$env:SPIKE_IDENTITY_ENABLED = "true"
+$env:SPIKE_IDENTITY_GRANTS = '[{"subject":"user-a","companyId":"company-a"},{"subject":"operator-a","platformOperator":true}]'
+pnpm dev
+```
+
+When PostgreSQL is configured, authorization comes from `company_memberships` and `platform_roles`; the environment grant list is ignored. A production identity adapter must implement `AccessTokenVerifier` and must fail closed when provider metadata or signing keys cannot be validated.
 
 ## Source documents
 

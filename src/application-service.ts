@@ -4,7 +4,7 @@ import { requireCompanyAccess } from "./domain.js";
 
 export interface ApplicationRepository {
   findByIdempotencyKey(companyId: string, key: string): Promise<Application | undefined>;
-  insert(application: Application): Promise<void>;
+  register(application: Application, event: AuditEvent): Promise<Application>;
   listByCompany(companyId: string): Promise<readonly Application[]>;
 }
 
@@ -41,8 +41,7 @@ export class ApplicationService {
       idempotencyKey: command.idempotencyKey,
       createdAt: new Date().toISOString(),
     };
-    await this.applications.insert(application);
-    await this.audit.append({
+    const registered = await this.applications.register(application, {
       id: randomUUID(),
       occurredAt: new Date().toISOString(),
       actorSubject: command.actor.subject,
@@ -53,7 +52,7 @@ export class ApplicationService {
       entityId: application.id,
       correlationId: command.correlationId,
     });
-    return application;
+    return registered;
   }
 
   async list(actor: Actor, companyId: string): Promise<readonly Application[]> {
@@ -61,4 +60,3 @@ export class ApplicationService {
     return this.applications.listByCompany(companyId);
   }
 }
-

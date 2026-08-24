@@ -1,0 +1,92 @@
+import { randomUUID } from "node:crypto";
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpException,
+  Param,
+  Post,
+} from "@nestjs/common";
+import { z } from "zod";
+import { AssessmentService } from "./assessment-service.js";
+import { ForbiddenError } from "./domain.js";
+import {
+  AuthenticationError,
+  IdentityConfigurationError,
+  IdentityService,
+} from "./identity.js";
+
+const submitSchema = z.object({
+  idempotencyKey: z.string().min(8).max(100),
+});
+
+@Controller("companies/:companyId/applications/:applicationId/assessments")
+export class AssessmentController {
+  constructor(
+    private readonly assessments: AssessmentService,
+    private readonly identity: IdentityService,
+  ) {}
+
+  @Post()
+  @HttpCode(202)
+  async submit(
+    @Param("companyId") companyId: string,
+    @Param("applicationId") applicationId: string,
+    @Headers() headers: Record<string, string | undefined>,
+    @Body() rawBody: unknown,
+  ) {
+    try {
+      const body = submitSchema.parse(rawBody);
+      const actor = await this.identity.resolveActor(headers.authorization, companyId);
+      return await this.assessments.submit({
+        actor,
+        companyId,
+        applicationId,
+        idempotencyKey: body.idempotencyKey,
+        correlationId: headers["x-correlation-id"] ?? randomUUID(),
+      });
+    } catch (error) {
+      this.rethrow(error);
+    }
+  }
+
+  @Get()
+  async list(
+    @Param("companyId") companyId: string,
+    @Param("applicationId") applicationId: string,
+    @Headers() headers: Record<string, string | undefined>,
+  ) {
+    try {
+      const actor = await this.identity.resolveActor(headers.authorization, companyId);
+      return await this.assessments.list(actor, companyId, applicationId);
+    } catch (error) {
+      this.rethrow(error);
+    }
+  }
+
+  @Get(":assessmentId")
+  async get(
+    @Param("companyId") companyId: string,
+    @Param("assessmentId") assessmentId: string,
+    @Headers() headers: Record<string, string | undefined>,
+  ) {
+    try {
+      const actor = await this.identity.resolveActor(headers.authorization, companyId);
+      const assessment = await this.assessments.get(actor, companyId, assessmentId);
+      if (!assessment) throw new HttpException("Assessment not found", 404);
+      return assessment;
+    } catch (error) {
+      this.rethrow(error);
+    }
+  }
+
+  private rethrow(error: unknown): never {
+    if (error instanceof z.ZodError) throw new HttpException(error.issues, 400);
+    if (error instanceof AuthenticationError) throw new HttpException(error.message, 401);
+    if (error instanceof IdentityConfigurationError) throw new HttpException(error.message, 503);
+    if (error instanceof ForbiddenError) throw new HttpException(error.message, 403);
+    throw error;
+  }
+}

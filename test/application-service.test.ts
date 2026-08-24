@@ -7,9 +7,9 @@ const companyA: Actor = { subject: "user-a", role: "company-user", companyId: "c
 const companyB: Actor = { subject: "user-b", role: "company-user", companyId: "company-b" };
 
 function fixture() {
-  const applications = new InMemoryApplicationRepository();
   const audit = new InMemoryAuditRepository();
-  return { applications, audit, service: new ApplicationService(applications, audit) };
+  const transactionalApplications = new InMemoryApplicationRepository(audit);
+  return { applications: transactionalApplications, audit, service: new ApplicationService(transactionalApplications, audit) };
 }
 
 describe("company isolation", () => {
@@ -42,4 +42,3 @@ describe("idempotency and audit", () => {
     expect(await audit.listByCompany("company-a")).toMatchObject([{ actorSubject: "user-a", action: "application.registered", correlationId: "corr-a" }]);
   });
 });
-

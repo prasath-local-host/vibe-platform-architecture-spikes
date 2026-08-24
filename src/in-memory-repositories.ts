@@ -3,10 +3,17 @@ import type { Application, AuditEvent } from "./domain.js";
 
 export class InMemoryApplicationRepository implements ApplicationRepository {
   private readonly rows: Application[] = [];
+  constructor(private readonly audit?: InMemoryAuditRepository) {}
   async findByIdempotencyKey(companyId: string, key: string) {
     return this.rows.find((row) => row.companyId === companyId && row.idempotencyKey === key);
   }
-  async insert(application: Application) { this.rows.push(application); }
+  async register(application: Application, event: AuditEvent) {
+    const existing = await this.findByIdempotencyKey(application.companyId, application.idempotencyKey);
+    if (existing) return existing;
+    this.rows.push(application);
+    await this.audit?.append(event);
+    return application;
+  }
   async listByCompany(companyId: string) { return this.rows.filter((row) => row.companyId === companyId); }
 }
 
@@ -15,4 +22,3 @@ export class InMemoryAuditRepository implements AuditRepository {
   async append(event: AuditEvent) { this.rows.push(event); }
   async listByCompany(companyId: string) { return this.rows.filter((row) => row.companyId === companyId); }
 }
-
