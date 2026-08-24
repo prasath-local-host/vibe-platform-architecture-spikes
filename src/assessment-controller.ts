@@ -10,6 +10,20 @@ import {
   Post,
 } from "@nestjs/common";
 import { z } from "zod";
+import {
+  ApiAcceptedResponse,
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+} from "@nestjs/swagger";
 import { AssessmentService } from "./assessment-service.js";
 import { ForbiddenError } from "./domain.js";
 import {
@@ -17,12 +31,34 @@ import {
   IdentityConfigurationError,
   IdentityService,
 } from "./identity.js";
+import {
+  AssessmentResponse,
+  HttpErrorResponse,
+  SubmitAssessmentRequest,
+  ValidationIssueResponse,
+} from "./openapi.js";
 
 const submitSchema = z.object({
   idempotencyKey: z.string().min(8).max(100),
 });
 
 @Controller("companies/:companyId/applications/:applicationId/assessments")
+@ApiTags("assessments")
+@ApiBearerAuth("bearer")
+@ApiParam({ name: "companyId", description: "VCP-controlled company identifier" })
+@ApiParam({ name: "applicationId", format: "uuid" })
+@ApiUnauthorizedResponse({
+  type: HttpErrorResponse,
+  description: "Bearer token is missing, malformed, expired, or cannot be verified.",
+})
+@ApiForbiddenResponse({
+  type: HttpErrorResponse,
+  description: "Verified subject has no active access to the requested company.",
+})
+@ApiServiceUnavailableResponse({
+  type: HttpErrorResponse,
+  description: "The configured identity verifier cannot establish trust.",
+})
 export class AssessmentController {
   constructor(
     private readonly assessments: AssessmentService,
@@ -31,6 +67,16 @@ export class AssessmentController {
 
   @Post()
   @HttpCode(202)
+  @ApiOperation({ summary: "Queue an asynchronous assessment idempotently" })
+  @ApiBody({ type: SubmitAssessmentRequest })
+  @ApiBadRequestResponse({
+    type: [ValidationIssueResponse],
+    description: "Request body failed schema validation.",
+  })
+  @ApiAcceptedResponse({
+    type: AssessmentResponse,
+    description: "Queued assessment, or the original assessment for an idempotent retry.",
+  })
   async submit(
     @Param("companyId") companyId: string,
     @Param("applicationId") applicationId: string,
@@ -53,6 +99,11 @@ export class AssessmentController {
   }
 
   @Get()
+  @ApiOperation({ summary: "List assessments for an application" })
+  @ApiOkResponse({
+    type: [AssessmentResponse],
+    description: "Assessments for the requested company application, oldest first.",
+  })
   async list(
     @Param("companyId") companyId: string,
     @Param("applicationId") applicationId: string,
@@ -67,6 +118,16 @@ export class AssessmentController {
   }
 
   @Get(":assessmentId")
+  @ApiOperation({ summary: "Get asynchronous assessment status and result" })
+  @ApiParam({ name: "assessmentId", format: "uuid" })
+  @ApiOkResponse({
+    type: AssessmentResponse,
+    description: "Current asynchronous lifecycle state and terminal result when available.",
+  })
+  @ApiNotFoundResponse({
+    type: HttpErrorResponse,
+    description: "No assessment with this identifier exists in the requested company.",
+  })
   async get(
     @Param("companyId") companyId: string,
     @Param("assessmentId") assessmentId: string,

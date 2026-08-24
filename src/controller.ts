@@ -1,5 +1,18 @@
 import { Body, Controller, Get, Headers, HttpException, Param, Post } from "@nestjs/common";
 import { z } from "zod";
+import {
+  ApiBearerAuth,
+  ApiBadRequestResponse,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from "@nestjs/swagger";
 import { ApplicationService } from "./application-service.js";
 import { ForbiddenError } from "./domain.js";
 import {
@@ -7,6 +20,12 @@ import {
   IdentityConfigurationError,
   IdentityService,
 } from "./identity.js";
+import {
+  ApplicationResponse,
+  HttpErrorResponse,
+  RegisterApplicationRequest,
+  ValidationIssueResponse,
+} from "./openapi.js";
 
 const bodySchema = z.object({
   name: z.string().min(1).max(120),
@@ -15,6 +34,21 @@ const bodySchema = z.object({
 });
 
 @Controller("companies/:companyId/applications")
+@ApiTags("applications")
+@ApiBearerAuth("bearer")
+@ApiParam({ name: "companyId", description: "VCP-controlled company identifier" })
+@ApiUnauthorizedResponse({
+  type: HttpErrorResponse,
+  description: "Bearer token is missing, malformed, expired, or cannot be verified.",
+})
+@ApiForbiddenResponse({
+  type: HttpErrorResponse,
+  description: "Verified subject has no active access to the requested company.",
+})
+@ApiServiceUnavailableResponse({
+  type: HttpErrorResponse,
+  description: "The configured identity verifier cannot establish trust.",
+})
 export class AppController {
   constructor(
     private readonly service: ApplicationService,
@@ -35,6 +69,11 @@ export class AppController {
   }
 
   @Get()
+  @ApiOperation({ summary: "List applications visible in a company" })
+  @ApiOkResponse({
+    type: [ApplicationResponse],
+    description: "Applications owned by the requested company.",
+  })
   async list(@Param("companyId") companyId: string, @Headers() headers: Record<string, string | undefined>) {
     try {
       const actor = await this.identity.resolveActor(
@@ -48,6 +87,16 @@ export class AppController {
   }
 
   @Post()
+  @ApiOperation({ summary: "Register an application idempotently" })
+  @ApiBody({ type: RegisterApplicationRequest })
+  @ApiBadRequestResponse({
+    type: [ValidationIssueResponse],
+    description: "Request body failed schema validation.",
+  })
+  @ApiCreatedResponse({
+    type: ApplicationResponse,
+    description: "New or previously registered idempotent application result.",
+  })
   async register(
     @Param("companyId") companyId: string,
     @Headers() headers: Record<string, string | undefined>,

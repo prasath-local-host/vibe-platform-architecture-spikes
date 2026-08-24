@@ -22,6 +22,9 @@ pnpm dev
 
 The API binds to `127.0.0.1:3000`. Never expose the synthetic-header authentication mechanism beyond the local spike environment.
 
+OpenAPI is generated from the running NestJS application. The local Swagger UI is available at `http://127.0.0.1:3000/docs`, with machine-readable JSON at `/openapi.json` and YAML at `/openapi.yaml`.
+Run `pnpm openapi:generate` to refresh the committed `openapi.json` contract after changing routes or schemas.
+
 Without `DATABASE_URL`, the API uses the in-memory adapter for local unit-level exploration. With `DATABASE_URL`, startup applies the versioned Kysely migrations and uses PostgreSQL. Registration inserts the application and audit event in one transaction; the unique `(company_id, idempotency_key)` constraint is the final concurrency boundary.
 
 ## Minimal asynchronous assessment
