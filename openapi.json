@@ -3,7 +3,7 @@
   "paths": {
     "/companies/{companyId}/applications": {
       "get": {
-        "operationId": "list",
+        "operationId": "AppController_list",
         "parameters": [
           {
             "name": "companyId",
@@ -69,7 +69,7 @@
         ]
       },
       "post": {
-        "operationId": "register",
+        "operationId": "AppController_register",
         "parameters": [
           {
             "name": "companyId",
@@ -157,7 +157,7 @@
     },
     "/companies/{companyId}/applications/{applicationId}/assessments": {
       "post": {
-        "operationId": "submit",
+        "operationId": "AssessmentController_submit",
         "parameters": [
           {
             "name": "applicationId",
@@ -251,7 +251,7 @@
         ]
       },
       "get": {
-        "operationId": "list",
+        "operationId": "AssessmentController_list",
         "parameters": [
           {
             "name": "applicationId",
@@ -327,7 +327,7 @@
     },
     "/companies/{companyId}/applications/{applicationId}/assessments/{assessmentId}": {
       "get": {
-        "operationId": "get",
+        "operationId": "AssessmentController_get",
         "parameters": [
           {
             "name": "assessmentId",

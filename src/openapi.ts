@@ -192,7 +192,7 @@ export function createOpenApiDocument(app: INestApplication) {
     )
     .build();
   return SwaggerModule.createDocument(app, config, {
-    operationIdFactory: (_controller, method) => method,
+    operationIdFactory: (controller, method) => `${controller}_${method}`,
   });
 }
 
