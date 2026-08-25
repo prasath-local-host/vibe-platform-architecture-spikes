@@ -1,7 +1,9 @@
 import "reflect-metadata";
 import helmet from "@fastify/helmet";
+import staticFiles from "@fastify/static";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import { resolve } from "node:path";
 import { AppModule } from "./app.module.js";
 import { configureOpenApi } from "./openapi.js";
 import { randomUUID } from "node:crypto";
@@ -58,4 +60,9 @@ await app.register(helmet, {
   },
 });
 configureOpenApi(app);
+await app.register(staticFiles, {
+  root: resolve(process.cwd(), "portal", "dist"),
+  prefix: "/portal/",
+  wildcard: false,
+});
 await app.listen({ host: "127.0.0.1", port: Number(process.env.PORT ?? 3000) });

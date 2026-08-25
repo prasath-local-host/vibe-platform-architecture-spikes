@@ -20,7 +20,7 @@ TEST_DATABASE_URL=postgres://vibe:vibe-development-only@localhost:5432/vibe_cont
 pnpm dev
 ```
 
-The API binds to `127.0.0.1:3000`. Never expose the synthetic-header authentication mechanism beyond the local spike environment.
+The API binds to `127.0.0.1:3000`. The minimal React control portal is available at `http://127.0.0.1:3000/portal/`. Never expose the synthetic-header authentication mechanism beyond the local spike environment.
 
 OpenAPI is generated from the running NestJS application. The local Swagger UI is available at `http://127.0.0.1:3000/docs`, with machine-readable JSON at `/openapi.json` and YAML at `/openapi.yaml`.
 Run `pnpm openapi:generate` to refresh the committed `openapi.json` contract after changing routes or schemas.

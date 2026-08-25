@@ -101,7 +101,7 @@ Dependencies must point inward:
 | domain | None |
 | application | `node:async_hooks`, `node:crypto` |
 | adapter | `@nestjs/common`, `@nestjs/swagger`, `kysely`, `node:crypto`, `pg`, `zod` |
-| composition | `@fastify/helmet`, `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-fastify`, `node:crypto`, `reflect-metadata` |
+| composition | `@fastify/helmet`, `@fastify/static`, `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-fastify`, `node:crypto`, `node:path`, `reflect-metadata` |
 
 ## Violations and cycles
 
