@@ -1,10 +1,12 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { AssessmentWorker } from "./assessment-service.js";
+import { StructuredLogger } from "./observability.js";
 
 @Injectable()
 export class AssessmentWorkerHost implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
   private running = false;
+  private readonly logger = new StructuredLogger();
 
   constructor(private readonly worker: AssessmentWorker) {}
 
@@ -27,7 +29,9 @@ export class AssessmentWorkerHost implements OnModuleInit, OnModuleDestroy {
         if (!(await this.worker.tick())) break;
       }
     } catch (error) {
-      console.error("Assessment worker cycle failed", error);
+      this.logger.error("assessment.worker.cycle_failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       this.running = false;
     }

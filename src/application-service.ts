@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Actor, Application, AuditEvent } from "./domain.js";
 import { requireCompanyAccess } from "./domain.js";
+import { silentLogger, type OperationalLogger } from "./observability.js";
 
 export interface ApplicationRepository {
   findByIdempotencyKey(companyId: string, key: string): Promise<Application | undefined>;
@@ -26,6 +27,7 @@ export class ApplicationService {
   constructor(
     private readonly applications: ApplicationRepository,
     private readonly audit: AuditRepository,
+    private readonly logger: OperationalLogger = silentLogger,
   ) {}
 
   async register(command: RegisterApplicationCommand): Promise<Application> {
@@ -51,6 +53,13 @@ export class ApplicationService {
       entityType: "application",
       entityId: application.id,
       correlationId: command.correlationId,
+    });
+    this.logger.info("audit.event.persisted", {
+      correlationId: command.correlationId,
+      action: "application.registered",
+      companyId: command.companyId,
+      entityType: "application",
+      entityId: registered.id,
     });
     return registered;
   }

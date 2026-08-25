@@ -38,6 +38,7 @@ const applicationModules = new Set([
   "application-service.ts",
   "assessment-service.ts",
   "identity.ts",
+  "observability.ts",
 ]);
 const compositionModules = new Set([
   "app.module.ts",

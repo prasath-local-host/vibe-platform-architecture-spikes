@@ -4,8 +4,49 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module.js";
 import { configureOpenApi } from "./openapi.js";
+import { randomUUID } from "node:crypto";
+import { runWithCorrelation, StructuredLogger } from "./observability.js";
 
-const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(), { bufferLogs: true });
+const logger = new StructuredLogger();
+const adapter = new FastifyAdapter();
+const requestStartTimes = new WeakMap<object, number>();
+const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
+  logger: false,
+});
+adapter.getInstance().addHook("onRequest", (request, reply, done) => {
+  const supplied = request.headers["x-correlation-id"];
+  const correlationId =
+    typeof supplied === "string" && supplied.length > 0 && supplied.length <= 160
+      ? supplied
+      : randomUUID();
+  reply.header("x-correlation-id", correlationId);
+  const startedAt = performance.now();
+  runWithCorrelation(correlationId, () => {
+    logger.info("http.request.started", {
+      requestId: request.id,
+      method: request.method,
+      path: request.url,
+    });
+    requestStartTimes.set(request, startedAt);
+    done();
+  });
+});
+adapter.getInstance().addHook("onResponse", (request, reply, done) => {
+  const correlationId = String(reply.getHeader("x-correlation-id") ?? request.id);
+  runWithCorrelation(correlationId, () => {
+    const startedAt = requestStartTimes.get(request);
+    logger.info("http.request.completed", {
+      requestId: request.id,
+      method: request.method,
+      path: request.url,
+      statusCode: reply.statusCode,
+      ...(typeof startedAt === "number"
+        ? { durationMs: Number((performance.now() - startedAt).toFixed(3)) }
+        : {}),
+    });
+    done();
+  });
+});
 await app.register(helmet, {
   contentSecurityPolicy: {
     directives: {

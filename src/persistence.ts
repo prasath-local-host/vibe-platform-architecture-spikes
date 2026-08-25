@@ -19,6 +19,7 @@ import {
   PostgresApplicationRepository,
   PostgresAuditRepository,
 } from "./postgres-repositories.js";
+import { StructuredLogger } from "./observability.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -30,6 +31,7 @@ export interface ApplicationRuntime {
 export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
+  const logger = new StructuredLogger();
   const verifier = new SpikeAccessTokenVerifier(
     process.env.SPIKE_IDENTITY_ENABLED === "true",
   );
@@ -40,11 +42,13 @@ export async function createApplicationRuntime(
       applications: new ApplicationService(
         new InMemoryApplicationRepository(audit),
         audit,
+        logger,
       ),
-      assessments: new AssessmentService(assessments),
+      assessments: new AssessmentService(assessments, logger),
       assessmentWorker: new AssessmentWorker(
         process.env.ASSESSMENT_WORKER_ID ?? `local-${process.pid}`,
         assessments,
+        logger,
       ),
       identity: new IdentityService(
         verifier,
@@ -55,18 +59,20 @@ export async function createApplicationRuntime(
     };
   }
 
-  const db = createDatabase(connectionString);
+  const db = createDatabase(connectionString, logger);
   await migrateToLatest(db);
   const assessments = new PostgresAssessmentRepository(db);
   return {
     applications: new ApplicationService(
       new PostgresApplicationRepository(db),
       new PostgresAuditRepository(db),
+      logger,
     ),
-    assessments: new AssessmentService(assessments),
+    assessments: new AssessmentService(assessments, logger),
     assessmentWorker: new AssessmentWorker(
       process.env.ASSESSMENT_WORKER_ID ?? `worker-${process.pid}`,
       assessments,
+      logger,
     ),
     identity: new IdentityService(
       verifier,

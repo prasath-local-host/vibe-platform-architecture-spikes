@@ -1,5 +1,6 @@
 import { Kysely, PostgresDialect, type Generated } from "kysely";
 import { Pool } from "pg";
+import { StructuredLogger, type OperationalLogger } from "./observability.js";
 
 export interface CompanyTable {
   id: string;
@@ -70,8 +71,28 @@ export interface Database {
   assessments: AssessmentTable;
 }
 
-export function createDatabase(connectionString: string): Kysely<Database> {
+export function createDatabase(
+  connectionString: string,
+  logger: OperationalLogger = new StructuredLogger(),
+): Kysely<Database> {
   return new Kysely<Database>({
+    log(event) {
+      const fields = {
+        durationMs: Number(event.queryDurationMillis.toFixed(3)),
+        sql: event.query.sql,
+      };
+      if (event.level === "error") {
+        logger.error("database.query.failed", {
+          ...fields,
+          error:
+            event.error instanceof Error
+              ? event.error.message
+              : String(event.error),
+        });
+      } else {
+        logger.info("database.query.completed", fields);
+      }
+    },
     dialect: new PostgresDialect({
       pool: new Pool({
         connectionString,

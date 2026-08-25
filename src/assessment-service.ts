@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Actor, Assessment, AuditEvent } from "./domain.js";
 import { requireCompanyAccess } from "./domain.js";
+import {
+  runWithCorrelation,
+  silentLogger,
+  type OperationalLogger,
+} from "./observability.js";
 
 export interface AssessmentRepository {
   submit(assessment: Assessment, event: AuditEvent): Promise<Assessment>;
@@ -27,7 +32,10 @@ export interface SubmitAssessmentCommand {
 }
 
 export class AssessmentService {
-  constructor(private readonly assessments: AssessmentRepository) {}
+  constructor(
+    private readonly assessments: AssessmentRepository,
+    private readonly logger: OperationalLogger = silentLogger,
+  ) {}
 
   async submit(command: SubmitAssessmentCommand): Promise<Assessment> {
     requireCompanyAccess(command.actor, command.companyId);
@@ -42,7 +50,7 @@ export class AssessmentService {
       attempts: 0,
       createdAt: now,
     };
-    return this.assessments.submit(
+    const submitted = await this.assessments.submit(
       assessment,
       this.event(
         command.actor,
@@ -52,6 +60,14 @@ export class AssessmentService {
         now,
       ),
     );
+    this.logger.info("audit.event.persisted", {
+      correlationId: submitted.correlationId,
+      action: "assessment.queued",
+      companyId: submitted.companyId,
+      entityType: "assessment",
+      entityId: submitted.id,
+    });
+    return submitted;
   }
 
   async get(
@@ -97,6 +113,7 @@ export class AssessmentWorker {
   constructor(
     private readonly workerId: string,
     private readonly assessments: AssessmentRepository,
+    private readonly logger: OperationalLogger = silentLogger,
   ) {}
 
   async tick(): Promise<boolean> {
@@ -105,33 +122,60 @@ export class AssessmentWorker {
       new Date().toISOString(),
     );
     if (!assessment) return false;
-    const occurredAt = new Date().toISOString();
-    const eventBase = {
-      id: randomUUID(),
-      occurredAt,
-      actorSubject: `worker:${this.workerId}`,
-      actorRole: "operator" as const,
-      companyId: assessment.companyId,
-      entityType: "assessment" as const,
-      entityId: assessment.id,
-      correlationId: assessment.correlationId,
-    };
-    try {
-      await this.assessments.complete(
-        assessment.id,
-        {
-          profile: "placeholder-web-application",
-          findings: [],
-        },
-        { ...eventBase, action: "assessment.completed" },
-      );
-    } catch (error) {
-      await this.assessments.fail(
-        assessment.id,
-        error instanceof Error ? error.message : "Unknown assessment failure",
-        { ...eventBase, action: "assessment.failed" },
-      );
-    }
-    return true;
+    return runWithCorrelation(assessment.correlationId, async () => {
+      const occurredAt = new Date().toISOString();
+      const eventBase = {
+        id: randomUUID(),
+        occurredAt,
+        actorSubject: `worker:${this.workerId}`,
+        actorRole: "operator" as const,
+        companyId: assessment.companyId,
+        entityType: "assessment",
+        entityId: assessment.id,
+        correlationId: assessment.correlationId,
+      } as const;
+      try {
+        this.logger.info("assessment.worker.started", {
+          workerId: this.workerId,
+          companyId: assessment.companyId,
+          assessmentId: assessment.id,
+        });
+        await this.assessments.complete(
+          assessment.id,
+          {
+            profile: "placeholder-web-application",
+            findings: [],
+          },
+          { ...eventBase, action: "assessment.completed" },
+        );
+        this.logger.info("audit.event.persisted", {
+          action: "assessment.completed",
+          companyId: assessment.companyId,
+          entityType: "assessment",
+          entityId: assessment.id,
+        });
+        this.logger.info("assessment.worker.completed", {
+          workerId: this.workerId,
+          companyId: assessment.companyId,
+          assessmentId: assessment.id,
+        });
+      } catch (error) {
+        await this.assessments.fail(
+          assessment.id,
+          error instanceof Error ? error.message : "Unknown assessment failure",
+          { ...eventBase, action: "assessment.failed" },
+        );
+        this.logger.error("assessment.worker.failed", {
+          workerId: this.workerId,
+          companyId: assessment.companyId,
+          assessmentId: assessment.id,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown assessment failure",
+        });
+      }
+      return true;
+    });
   }
 }

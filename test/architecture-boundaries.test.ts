@@ -17,10 +17,10 @@ describe("architecture module boundaries", () => {
     const innerModules = analysis.modules.filter(
       (module) => module.layer === "domain" || module.layer === "application",
     );
-    expect(innerModules).toHaveLength(4);
+    expect(innerModules).toHaveLength(5);
     expect(
       innerModules.flatMap((module) => module.externalDependencies),
-    ).toEqual(["node:crypto", "node:crypto"]);
+    ).toEqual(["node:crypto", "node:crypto", "node:async_hooks"]);
   });
 
   it("keeps the committed dependency report synchronized", async () => {
