@@ -11,12 +11,14 @@ describe("portal browser credential boundary", () => {
     expect(session.value()).toBeUndefined();
   });
 
-  it("contains no browser persistence API usage", async () => {
+  it("keeps tokens in memory while limiting session storage to PKCE state", async () => {
     const sources = await Promise.all(
-      ["auth-session.ts", "api.ts", "main.tsx"].map((name) =>
+      ["auth-session.ts", "api.ts", "main.tsx", "oidc.ts"].map((name) =>
         readFile(new URL(`../portal/src/${name}`, import.meta.url), "utf8"),
       ),
     );
-    expect(sources.join("\n")).not.toMatch(/localStorage|sessionStorage|indexedDB/i);
+    expect(sources.join("\n")).not.toMatch(/localStorage|indexedDB/i);
+    expect(sources.join("\n")).toContain("userStore: memoryUserStore");
+    expect(sources.join("\n")).toContain("store: window.sessionStorage");
   });
 });

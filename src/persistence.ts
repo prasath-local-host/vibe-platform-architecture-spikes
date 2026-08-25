@@ -20,6 +20,7 @@ import {
   PostgresAuditRepository,
 } from "./postgres-repositories.js";
 import { StructuredLogger } from "./observability.js";
+import { OidcAccessTokenVerifier } from "./oidc-access-token-verifier.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -32,9 +33,13 @@ export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
   const logger = new StructuredLogger();
-  const verifier = new SpikeAccessTokenVerifier(
-    process.env.SPIKE_IDENTITY_ENABLED === "true",
-  );
+  const verifier = process.env.OIDC_ISSUER_URL && process.env.OIDC_AUDIENCE
+    ? await OidcAccessTokenVerifier.create({
+        issuer: process.env.OIDC_ISSUER_URL,
+        audience: process.env.OIDC_AUDIENCE,
+        allowHttp: process.env.OIDC_ALLOW_HTTP === "true",
+      })
+    : new SpikeAccessTokenVerifier(process.env.SPIKE_IDENTITY_ENABLED === "true");
   if (!connectionString) {
     const audit = new InMemoryAuditRepository();
     const assessments = new InMemoryAssessmentRepository(audit);

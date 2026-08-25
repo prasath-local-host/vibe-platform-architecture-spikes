@@ -2,20 +2,36 @@ import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import { portalApi, type Application, type Assessment } from "./api";
 import { MemorySession, type PortalRole, type PortalSession } from "./auth-session";
+import {
+  beginOidcSignIn,
+  completeOidcSignIn,
+  endOidcSession,
+  type OidcIdentity,
+} from "./oidc";
 import "./styles.css";
 
 const authSession = new MemorySession();
 
 function Login({ onSignedIn }: { onSignedIn: (session: PortalSession) => void }) {
-  const [subject, setSubject] = useState("postgres-operator");
+  const [identity, setIdentity] = useState<OidcIdentity>();
   const [companyId, setCompanyId] = useState("demo-company");
   const [role, setRole] = useState<PortalRole>("operator");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void completeOidcSignIn()
+      .then(setIdentity)
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "Sign-in failed"))
+      .finally(() => setLoading(false));
+  }, []);
 
   function submit(event: FormEvent) {
     event.preventDefault();
+    if (!identity) return;
     const session: PortalSession = {
-      subject,
-      accessToken: `spike:${subject}`,
+      subject: identity.subject,
+      accessToken: identity.accessToken,
       role,
       ...(role === "company-user" ? { companyId } : {}),
     };
@@ -33,12 +49,14 @@ function Login({ onSignedIn }: { onSignedIn: (session: PortalSession) => void })
     <section className="login-panel">
       <form className="card login-card" onSubmit={submit}>
         <div className="brand-mark">V</div>
-        <div><span className="eyebrow blue">CONTROL PORTAL</span><h2>Welcome back</h2><p>Use the local spike identity to explore the validated workflow.</p></div>
-        <label>View as<select value={role} onChange={(event) => setRole(event.target.value as PortalRole)}><option value="operator">LocalHost operator</option><option value="company-user">Company user</option></select></label>
-        <label>Subject<input value={subject} onChange={(event) => setSubject(event.target.value)} required /></label>
-        {role === "company-user" && <label>Company ID<input value={companyId} onChange={(event) => setCompanyId(event.target.value)} required /></label>}
-        <button className="primary" type="submit">Continue to portal</button>
-        <small>Spike only. Credentials remain in memory and are cleared on refresh.</small>
+        <div><span className="eyebrow blue">CONTROL PORTAL</span><h2>{identity ? `Welcome, ${identity.displayName}` : "Welcome back"}</h2><p>Authenticate with the federated identity provider, then open an authorized workspace.</p></div>
+        {error && <div className="error">{error}</div>}
+        {!identity ? <button className="primary" type="button" disabled={loading} onClick={() => void beginOidcSignIn()}>{loading ? "Checking session…" : "Sign in with Keycloak"}</button> : <>
+          <label>Workspace type<select value={role} onChange={(event) => setRole(event.target.value as PortalRole)}><option value="operator">LocalHost operator</option><option value="company-user">Company user</option></select></label>
+          {role === "company-user" && <label>Company ID<input value={companyId} onChange={(event) => setCompanyId(event.target.value)} required /></label>}
+          <button className="primary" type="submit">Continue to portal</button>
+        </>}
+        <small>Authorization Code + PKCE. Access tokens remain in memory and are cleared on refresh.</small>
       </form>
     </section>
   </main>;
@@ -108,7 +126,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
 
 function App() {
   const [session, setSession] = useState<PortalSession>();
-  return session ? <Portal session={session} onSignOut={() => { authSession.signOut(); setSession(undefined); }} /> : <Login onSignedIn={setSession} />;
+  return session ? <Portal session={session} onSignOut={() => { authSession.signOut(); setSession(undefined); void endOidcSession(); }} /> : <Login onSignedIn={setSession} />;
 }
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

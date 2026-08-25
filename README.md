@@ -44,7 +44,11 @@ The control plane separates authentication from authorization:
 3. An `AuthorizationRepository` loads active platform roles and company memberships from VCP-controlled storage.
 4. `IdentityService` derives the actor for the requested company. Tenant identifiers or privileged roles supplied by the browser or untrusted token claims are not accepted as authorization.
 
-The included `SpikeAccessTokenVerifier` accepts only `Authorization: Bearer spike:<subject>` and is disabled by default. It must never be enabled outside a local, isolated spike environment. For an in-memory local run, grants can be supplied explicitly:
+The production-shaped adapter discovers the configured OpenID Connect provider, pins the discovered issuer and same-origin JWKS endpoint, and validates RS256 signature, issuer, audience, subject, issued-at and expiry. Configure `OIDC_ISSUER_URL` and `OIDC_AUDIENCE`; non-HTTPS issuers require the explicit local-only `OIDC_ALLOW_HTTP=true` override.
+
+The React portal uses Authorization Code with PKCE. Access tokens and the user session stay in memory; only the short-lived PKCE transaction state crosses the redirect in session storage.
+
+The included `SpikeAccessTokenVerifier` accepts only `Authorization: Bearer spike:<subject>` and is disabled by default. It remains a fallback for isolated tests only. For an in-memory local run, grants can be supplied explicitly:
 
 ```powershell
 $env:SPIKE_IDENTITY_ENABLED = "true"
@@ -52,7 +56,7 @@ $env:SPIKE_IDENTITY_GRANTS = '[{"subject":"user-a","companyId":"company-a"},{"su
 pnpm dev
 ```
 
-When PostgreSQL is configured, authorization comes from `company_memberships` and `platform_roles`; the environment grant list is ignored. A production identity adapter must implement `AccessTokenVerifier` and must fail closed when provider metadata or signing keys cannot be validated.
+When PostgreSQL is configured, authorization comes from `company_memberships` and `platform_roles`; the environment grant list and token role claims are ignored. The local Keycloak realm is available through `docker compose up -d keycloak`; its synthetic accounts and development credentials must never be reused outside the spike.
 
 ## Source documents
 

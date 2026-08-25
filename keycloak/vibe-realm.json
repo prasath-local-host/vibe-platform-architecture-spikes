@@ -1,0 +1,55 @@
+{
+  "realm": "vibe",
+  "enabled": true,
+  "displayName": "Vibe Coding Platform",
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "vibe-control-plane",
+      "name": "Vibe Coding Platform Portal",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://127.0.0.1:3000/portal/*"],
+      "webOrigins": ["http://127.0.0.1:3000"],
+      "protocol": "openid-connect",
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "protocolMappers": [
+        {
+          "name": "vibe-control-plane audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "vibe-control-plane",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "username": "vibe-operator",
+      "firstName": "Vibe",
+      "lastName": "Operator",
+      "email": "vibe-operator@example.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "local-demo-only", "temporary": false }]
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "username": "company-user",
+      "firstName": "Company",
+      "lastName": "User",
+      "email": "company-user@example.invalid",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "local-demo-only", "temporary": false }]
+    }
+  ]
+}

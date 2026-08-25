@@ -22,8 +22,8 @@ export class AuthenticationError extends Error {
 }
 
 export class IdentityConfigurationError extends Error {
-  constructor() {
-    super("No production identity provider is configured");
+  constructor(message = "No production identity provider is configured") {
+    super(message);
   }
 }
 

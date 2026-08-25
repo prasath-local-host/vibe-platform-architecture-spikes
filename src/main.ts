@@ -56,6 +56,12 @@ await app.register(helmet, {
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "validator.swagger.io"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: [
+        "'self'",
+        ...(process.env.OIDC_BROWSER_ORIGIN
+          ? [process.env.OIDC_BROWSER_ORIGIN]
+          : []),
+      ],
     },
   },
 });

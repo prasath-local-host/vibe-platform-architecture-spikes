@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 20 |
-| Local dependency edges | 53 |
+| Classified production modules | 21 |
+| Local dependency edges | 55 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -33,7 +33,7 @@ Dependencies must point inward:
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
 | application | 4 | `application-service.ts`, `assessment-service.ts`, `identity.ts`, `observability.ts` |
-| adapter | 11 | `assessment-controller.ts`, `assessment-worker-host.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `migrations.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| adapter | 12 | `assessment-controller.ts`, `assessment-worker-host.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -74,6 +74,7 @@ Dependencies must point inward:
 | `migrate.ts` | composition | `database.ts` | adapter |
 | `migrate.ts` | composition | `migrations.ts` | adapter |
 | `migrations.ts` | adapter | `database.ts` | adapter |
+| `oidc-access-token-verifier.ts` | adapter | `identity.ts` | application |
 | `persistence.ts` | composition | `application-service.ts` | application |
 | `persistence.ts` | composition | `assessment-service.ts` | application |
 | `persistence.ts` | composition | `database.ts` | adapter |
@@ -82,6 +83,7 @@ Dependencies must point inward:
 | `persistence.ts` | composition | `in-memory-repositories.ts` | adapter |
 | `persistence.ts` | composition | `migrations.ts` | adapter |
 | `persistence.ts` | composition | `observability.ts` | application |
+| `persistence.ts` | composition | `oidc-access-token-verifier.ts` | adapter |
 | `persistence.ts` | composition | `postgres-assessment-repository.ts` | adapter |
 | `persistence.ts` | composition | `postgres-authorization-repository.ts` | adapter |
 | `persistence.ts` | composition | `postgres-repositories.ts` | adapter |
@@ -100,7 +102,7 @@ Dependencies must point inward:
 | --- | --- |
 | domain | None |
 | application | `node:async_hooks`, `node:crypto` |
-| adapter | `@nestjs/common`, `@nestjs/swagger`, `kysely`, `node:crypto`, `pg`, `zod` |
+| adapter | `@nestjs/common`, `@nestjs/swagger`, `jose`, `kysely`, `node:crypto`, `pg`, `zod` |
 | composition | `@fastify/helmet`, `@fastify/static`, `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-fastify`, `node:crypto`, `node:path`, `reflect-metadata` |
 
 ## Violations and cycles

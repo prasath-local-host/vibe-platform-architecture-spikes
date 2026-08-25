@@ -16,9 +16,9 @@ The portal is served by NestJS/Fastify at `/portal/`; Swagger remains at `/docs`
 
 ## Credential boundary
 
-The local spike token is held in a React in-memory session only. It is never written to local storage, session storage or IndexedDB, and it is cleared on sign-out or page refresh.
+The Keycloak access token and OIDC user are held in a React in-memory store only. They are never written to local storage, session storage or IndexedDB, and are cleared on sign-out or page refresh. Only the short-lived PKCE verifier and OAuth transaction state use session storage so the full-page redirect can complete.
 
-`test/portal-security.test.ts` verifies both the session lifecycle and absence of browser persistence API usage in portal sources. The synthetic `spike:` identity mechanism remains local-only and must be replaced by the selected federated provider before production use.
+`test/portal-security.test.ts` verifies the session lifecycle, prohibits local storage and IndexedDB, and asserts that OIDC user storage is the explicit in-memory adapter.
 
 ## Verification
 
@@ -28,20 +28,23 @@ On 2026-08-25:
 | --- | --- |
 | Backend strict TypeScript | Passed |
 | Portal strict TypeScript | Passed |
-| React/Vite production build | Passed — 30 modules |
-| Test files | 10 passed |
-| Tests | 43 passed |
+| React/Vite production build | Passed — 33 modules |
+| Test files | 12 passed |
+| Tests | 51 passed |
 | PostgreSQL integration tests | 6 passed |
 | Architecture boundary check | Passed — 0 violations, 0 cycles |
-| Live operator flow | Passed — selected customer application visible |
-| Live company-user flow | Passed — assigned-company application visible; customer selector absent |
+| Live operator flow | Passed — Keycloak login and selected customer application visible |
+| Live company-user flow | Passed — Keycloak login, assigned-company application visible, customer selector absent |
 
 ## Reproduce
 
 ```powershell
 pnpm build
 $env:DATABASE_URL='postgres://vibe:vibe-development-only@localhost:5432/vibe_control'
-$env:SPIKE_IDENTITY_ENABLED='true'
+$env:OIDC_ISSUER_URL='http://localhost:8081/realms/vibe'
+$env:OIDC_AUDIENCE='vibe-control-plane'
+$env:OIDC_ALLOW_HTTP='true'
+$env:OIDC_BROWSER_ORIGIN='http://localhost:8081'
 pnpm start
 ```
 
@@ -49,7 +52,7 @@ Open `http://127.0.0.1:3000/portal/`.
 
 ## Remaining limits
 
-* The login form represents the identity-provider integration boundary; it is not a production login.
+* The imported Keycloak realm and credentials are synthetic development fixtures; production realm hardening remains operational work.
 * Operator customer discovery uses an explicit company identifier in this slice. A managed customer-directory endpoint remains product work.
 * Full cross-browser, accessibility and responsive test matrices remain outstanding.
-* CSRF/session-cookie controls will be defined with the production identity flow; the spike currently uses an in-memory bearer token.
+* Issued access tokens are bearer tokens with a five-minute lifetime. Immediate company/role revocation is enforced in VCP storage; provider token introspection is not implemented.
