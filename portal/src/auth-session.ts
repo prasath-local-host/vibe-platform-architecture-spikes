@@ -2,7 +2,7 @@ export type PortalRole = "company-user" | "operator";
 
 export interface PortalSession {
   readonly subject: string;
-  readonly accessToken: string;
+  readonly displayName: string;
   readonly role: PortalRole;
   readonly companyId?: string;
 }

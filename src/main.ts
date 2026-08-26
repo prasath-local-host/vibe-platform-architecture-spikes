@@ -8,6 +8,7 @@ import { AppModule } from "./app.module.js";
 import { configureOpenApi } from "./openapi.js";
 import { randomUUID } from "node:crypto";
 import { runWithCorrelation, StructuredLogger } from "./observability.js";
+import { registerBrowserSessions } from "./browser-session.js";
 
 const logger = new StructuredLogger();
 const adapter = new FastifyAdapter();
@@ -15,6 +16,7 @@ const requestStartTimes = new WeakMap<object, number>();
 const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, {
   logger: false,
 });
+await registerBrowserSessions(adapter.getInstance());
 adapter.getInstance().addHook("onRequest", (request, reply, done) => {
   const supplied = request.headers["x-correlation-id"];
   const correlationId =
@@ -56,12 +58,7 @@ await app.register(helmet, {
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "validator.swagger.io"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
-      connectSrc: [
-        "'self'",
-        ...(process.env.OIDC_BROWSER_ORIGIN
-          ? [process.env.OIDC_BROWSER_ORIGIN]
-          : []),
-      ],
+      connectSrc: ["'self'"],
     },
   },
 });

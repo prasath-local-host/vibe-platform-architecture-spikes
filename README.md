@@ -46,7 +46,7 @@ The control plane separates authentication from authorization:
 
 The production-shaped adapter discovers the configured OpenID Connect provider, pins the discovered issuer and same-origin JWKS endpoint, and validates RS256 signature, issuer, audience, subject, issued-at and expiry. Configure `OIDC_ISSUER_URL` and `OIDC_AUDIENCE`; non-HTTPS issuers require the explicit local-only `OIDC_ALLOW_HTTP=true` override.
 
-The React portal uses Authorization Code with PKCE. Access tokens and the user session stay in memory; only the short-lived PKCE transaction state crosses the redirect in session storage.
+The React portal uses a backend-for-frontend session. Fastify owns Authorization Code with PKCE, the code exchange and provider tokens. The browser receives only an HTTP-only, same-site session cookie and a non-secret CSRF value. Production cookies use the `Secure` attribute and `__Host-` prefix; the local HTTP fixture uses an explicitly development-only cookie name.
 
 The included `SpikeAccessTokenVerifier` accepts only `Authorization: Bearer spike:<subject>` and is disabled by default. It remains a fallback for isolated tests only. For an in-memory local run, grants can be supplied explicitly:
 

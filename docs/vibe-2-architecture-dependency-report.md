@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 21 |
-| Local dependency edges | 55 |
+| Classified production modules | 22 |
+| Local dependency edges | 57 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -33,7 +33,7 @@ Dependencies must point inward:
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
 | application | 4 | `application-service.ts`, `assessment-service.ts`, `identity.ts`, `observability.ts` |
-| adapter | 12 | `assessment-controller.ts`, `assessment-worker-host.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| adapter | 13 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -57,6 +57,7 @@ Dependencies must point inward:
 | `assessment-service.ts` | application | `observability.ts` | application |
 | `assessment-worker-host.ts` | adapter | `assessment-service.ts` | application |
 | `assessment-worker-host.ts` | adapter | `observability.ts` | application |
+| `browser-session.ts` | adapter | `oidc-access-token-verifier.ts` | adapter |
 | `controller.ts` | adapter | `application-service.ts` | application |
 | `controller.ts` | adapter | `domain.ts` | domain |
 | `controller.ts` | adapter | `identity.ts` | application |
@@ -69,6 +70,7 @@ Dependencies must point inward:
 | `in-memory-repositories.ts` | adapter | `application-service.ts` | application |
 | `in-memory-repositories.ts` | adapter | `domain.ts` | domain |
 | `main.ts` | composition | `app.module.ts` | composition |
+| `main.ts` | composition | `browser-session.ts` | adapter |
 | `main.ts` | composition | `observability.ts` | application |
 | `main.ts` | composition | `openapi.ts` | adapter |
 | `migrate.ts` | composition | `database.ts` | adapter |
@@ -102,7 +104,7 @@ Dependencies must point inward:
 | --- | --- |
 | domain | None |
 | application | `node:async_hooks`, `node:crypto` |
-| adapter | `@nestjs/common`, `@nestjs/swagger`, `jose`, `kysely`, `node:crypto`, `pg`, `zod` |
+| adapter | `@nestjs/common`, `@nestjs/swagger`, `fastify`, `jose`, `kysely`, `node:crypto`, `pg`, `zod` |
 | composition | `@fastify/helmet`, `@fastify/static`, `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-fastify`, `node:crypto`, `node:path`, `reflect-metadata` |
 
 ## Violations and cycles

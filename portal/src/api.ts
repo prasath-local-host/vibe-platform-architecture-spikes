@@ -13,13 +13,18 @@ export interface Assessment {
   readonly createdAt: string;
 }
 
-async function request<T>(path: string, token: string, init?: RequestInit): Promise<T> {
+let csrfToken = "";
+
+export interface BrowserIdentity { readonly subject: string; readonly displayName: string; readonly csrfToken: string }
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
+    credentials: "same-origin",
     headers: {
-      authorization: `Bearer ${token}`,
       "content-type": "application/json",
       "x-correlation-id": crypto.randomUUID(),
+      ...(!["GET", "HEAD"].includes(init?.method ?? "GET") ? { "x-csrf-token": csrfToken } : {}),
       ...init?.headers,
     },
   });
@@ -28,17 +33,25 @@ async function request<T>(path: string, token: string, init?: RequestInit): Prom
 }
 
 export const portalApi = {
-  applications: (companyId: string, token: string) =>
-    request<Application[]>(`/companies/${encodeURIComponent(companyId)}/applications`, token),
-  registerApplication: (companyId: string, token: string, name: string, repositoryUrl: string) =>
-    request<Application>(`/companies/${encodeURIComponent(companyId)}/applications`, token, {
+  session: async () => {
+    const response = await fetch("/auth/session", { credentials: "same-origin" });
+    if (response.status === 401) return undefined;
+    if (!response.ok) throw new Error("Unable to check the browser session");
+    const value = await response.json() as BrowserIdentity;
+    csrfToken = value.csrfToken;
+    return value;
+  },
+  login: () => { window.location.assign("/auth/login"); },
+  logout: () => request<{ logoutUrl: string }>("/auth/logout", { method: "POST" }),
+  applications: (companyId: string) => request<Application[]>(`/companies/${encodeURIComponent(companyId)}/applications`),
+  registerApplication: (companyId: string, name: string, repositoryUrl: string) =>
+    request<Application>(`/companies/${encodeURIComponent(companyId)}/applications`, {
       method: "POST",
       body: JSON.stringify({ name, repositoryUrl, idempotencyKey: crypto.randomUUID() }),
     }),
-  assessments: (companyId: string, applicationId: string, token: string) =>
-    request<Assessment[]>(`/companies/${encodeURIComponent(companyId)}/applications/${applicationId}/assessments`, token),
-  submitAssessment: (companyId: string, applicationId: string, token: string) =>
-    request<Assessment>(`/companies/${encodeURIComponent(companyId)}/applications/${applicationId}/assessments`, token, {
+  assessments: (companyId: string, applicationId: string) => request<Assessment[]>(`/companies/${encodeURIComponent(companyId)}/applications/${applicationId}/assessments`),
+  submitAssessment: (companyId: string, applicationId: string) =>
+    request<Assessment>(`/companies/${encodeURIComponent(companyId)}/applications/${applicationId}/assessments`, {
       method: "POST",
       body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
     }),

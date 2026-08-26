@@ -4,7 +4,7 @@
 >
 > **Provider:** Keycloak 26.7.0, pinned container image
 >
-> **Flow:** Authorization Code with PKCE for the browser; signed JWT access token for the API
+> **Flow:** Server-owned Authorization Code with PKCE; HTTP-only browser session; signed JWT access token remains in the BFF
 
 ## Trust boundary
 
@@ -21,7 +21,9 @@ The verified subject is the only external authorization key. Company memberships
 
 ## Browser flow
 
-The React portal uses `oidc-client-ts` 3.5.0 with Authorization Code and PKCE. The OIDC user and access token use an in-memory store. Transient PKCE verifier/state uses session storage across the redirect; tokens never enter browser storage.
+Fastify acts as the backend for frontend. It creates OAuth state and the PKCE verifier, validates the callback, exchanges the authorization code, and retains the provider access token in a bounded server-side session. The browser receives only an HTTP-only, same-site cookie. State-changing requests require a session-bound CSRF value supplied through a custom header. Logout deletes the local session and continues to the provider logout endpoint. Browser code contains no OIDC client or provider token handling.
+
+The in-memory session adapter is deliberately bounded spike evidence. Production requires a shared, encrypted session store with expiry, rotation and operational recovery appropriate to the selected deployment topology.
 
 ## Automated and live verification
 
@@ -39,6 +41,8 @@ The React portal uses `oidc-client-ts` 3.5.0 with Authorization Code and PKCE. T
 | Live operator PKCE browser flow | Passed |
 | Live company-user PKCE browser flow | Passed |
 | PostgreSQL authorization after verification | Passed |
+| Browser provider-token exclusion | Passed by source enforcement |
+| CSRF enforcement boundary | Passed by source enforcement |
 
 Final combined run on 2026-08-25: **12 test files and 51/51 tests passed**, including all six PostgreSQL tests and the live Keycloak integration test.
 
@@ -48,4 +52,4 @@ Company membership and platform-role revocation remains immediate because every 
 
 ## Operational limits
 
-The imported realm, users, passwords, HTTP transport and `start-dev` command are synthetic local fixtures only. Production requires TLS, external Keycloak persistence, hardened realm/client policy, secret and administrator lifecycle, backup/recovery, monitoring, upgrade testing and removal of direct password grants.
+The imported realm, users, passwords, HTTP transport, in-memory BFF sessions and `start-dev` command are synthetic local fixtures only. Production requires TLS, a shared encrypted session store, hardened provider persistence and policy, secret and administrator lifecycle, backup/recovery, monitoring, upgrade testing and removal of direct password grants.

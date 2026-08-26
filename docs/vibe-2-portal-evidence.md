@@ -16,9 +16,9 @@ The portal is served by NestJS/Fastify at `/portal/`; Swagger remains at `/docs`
 
 ## Credential boundary
 
-The Keycloak access token and OIDC user are held in a React in-memory store only. They are never written to local storage, session storage or IndexedDB, and are cleared on sign-out or page refresh. Only the short-lived PKCE verifier and OAuth transaction state use session storage so the full-page redirect can complete.
+The portal uses a backend-for-frontend session. Keycloak tokens, OAuth state and the PKCE verifier remain server-side. The browser receives only an HTTP-only, same-site session cookie and a session-bound CSRF value; it contains no OIDC library or provider-token handling. Logout invalidates the local session before continuing to provider logout.
 
-`test/portal-security.test.ts` verifies the session lifecycle, prohibits local storage and IndexedDB, and asserts that OIDC user storage is the explicit in-memory adapter.
+`test/portal-security.test.ts` prohibits browser storage and access-token handling and asserts the HTTP-only cookie, PKCE and CSRF boundaries.
 
 ## Verification
 
@@ -44,7 +44,8 @@ $env:DATABASE_URL='postgres://vibe:vibe-development-only@localhost:5432/vibe_con
 $env:OIDC_ISSUER_URL='http://localhost:8081/realms/vibe'
 $env:OIDC_AUDIENCE='vibe-control-plane'
 $env:OIDC_ALLOW_HTTP='true'
-$env:OIDC_BROWSER_ORIGIN='http://localhost:8081'
+$env:OIDC_CLIENT_ID='vibe-control-plane'
+$env:PUBLIC_ORIGIN='http://127.0.0.1:3000'
 pnpm start
 ```
 
@@ -55,4 +56,4 @@ Open `http://127.0.0.1:3000/portal/`.
 * The imported Keycloak realm and credentials are synthetic development fixtures; production realm hardening remains operational work.
 * Operator customer discovery uses an explicit company identifier in this slice. A managed customer-directory endpoint remains product work.
 * Full cross-browser, accessibility and responsive test matrices remain outstanding.
-* Issued access tokens are bearer tokens with a five-minute lifetime. Immediate company/role revocation is enforced in VCP storage; provider token introspection is not implemented.
+* The local BFF session store is process-local and intentionally non-durable. Production requires a shared encrypted session store and tested expiry, rotation, revocation and recovery behavior.
