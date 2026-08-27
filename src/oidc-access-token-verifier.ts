@@ -75,7 +75,14 @@ export class OidcAccessTokenVerifier implements AccessTokenVerifier {
         maxTokenAge: "15 minutes",
       });
       if (!payload.sub) throw new AuthenticationError();
-      return { issuer: this.issuer, subject: payload.sub };
+      return {
+        issuer: this.issuer,
+        subject: payload.sub,
+        ...(typeof payload.acr === "string" ? { authenticationContext: payload.acr } : {}),
+        ...(Array.isArray(payload.amr) && payload.amr.every((method) => typeof method === "string")
+          ? { authenticationMethods: payload.amr }
+          : {}),
+      };
     } catch {
       throw new AuthenticationError("Bearer token could not be verified");
     }

@@ -10,6 +10,7 @@ import {
   IdentityService,
   InMemoryAuthorizationRepository,
   parseSpikeGrants,
+  parsePrivilegedAuthenticationContexts,
   SpikeAccessTokenVerifier,
 } from "./identity.js";
 import { PostgresAuthorizationRepository } from "./postgres-authorization-repository.js";
@@ -33,6 +34,9 @@ export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
   const logger = new StructuredLogger();
+  const privilegedContexts = parsePrivilegedAuthenticationContexts(
+    process.env.PRIVILEGED_AUTHENTICATION_CONTEXTS,
+  );
   const verifier = process.env.OIDC_ISSUER_URL && process.env.OIDC_AUDIENCE
     ? await OidcAccessTokenVerifier.create({
         issuer: process.env.OIDC_ISSUER_URL,
@@ -60,6 +64,7 @@ export async function createApplicationRuntime(
         new InMemoryAuthorizationRepository(
           parseSpikeGrants(process.env.SPIKE_IDENTITY_GRANTS),
         ),
+        privilegedContexts,
       ),
     };
   }
@@ -82,6 +87,7 @@ export async function createApplicationRuntime(
     identity: new IdentityService(
       verifier,
       new PostgresAuthorizationRepository(db),
+      privilegedContexts,
     ),
   };
 }

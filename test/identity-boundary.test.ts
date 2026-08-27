@@ -6,14 +6,19 @@ import {
   IdentityService,
   InMemoryAuthorizationRepository,
   parseSpikeGrants,
+  parsePrivilegedAuthenticationContexts,
   SpikeAccessTokenVerifier,
   type AccessTokenVerifier,
 } from "../src/identity.js";
 
 class FixedVerifier implements AccessTokenVerifier {
-  constructor(private readonly subject: string) {}
+  constructor(private readonly subject: string, private readonly authenticationContext?: string) {}
   async verify() {
-    return { issuer: "https://identity.example.test", subject: this.subject };
+    return {
+      issuer: "https://identity.example.test",
+      subject: this.subject,
+      ...(this.authenticationContext ? { authenticationContext: this.authenticationContext } : {}),
+    };
   }
 }
 
@@ -48,6 +53,39 @@ describe("identity integration boundary", () => {
       subject: "operator-a",
       role: "operator",
     });
+  });
+
+  it("rejects a platform operator without an approved MFA assurance context", async () => {
+    const authorization = new InMemoryAuthorizationRepository([
+      { subject: "operator-a", platformOperator: true },
+    ]);
+    const identity = new IdentityService(
+      new FixedVerifier("operator-a", "password-only"),
+      authorization,
+      ["mfa"],
+    );
+    await expect(identity.resolveActor("Bearer ignored", "company-a")).rejects.toThrow(
+      "Privileged authentication assurance is required",
+    );
+  });
+
+  it("accepts a platform operator with an approved MFA assurance context", async () => {
+    const identity = new IdentityService(
+      new FixedVerifier("operator-a", "mfa"),
+      new InMemoryAuthorizationRepository([{ subject: "operator-a", platformOperator: true }]),
+      ["mfa"],
+    );
+    await expect(identity.resolveActor("Bearer ignored", "company-a")).resolves.toEqual({
+      subject: "operator-a",
+      role: "operator",
+    });
+  });
+
+  it("parses the configured privileged assurance allow-list", () => {
+    expect(parsePrivilegedAuthenticationContexts("mfa, urn:example:loa:2, ")).toEqual([
+      "mfa",
+      "urn:example:loa:2",
+    ]);
   });
 
   it("does not promote a company member to platform operator", async () => {

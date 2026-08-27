@@ -19,6 +19,12 @@ Access-token verification requires:
 
 The verified subject is the only external authorization key. Company memberships and platform-operator roles are always loaded from PostgreSQL. Tenant IDs or privileged roles from browser input or token claims do not grant access.
 
+## Privileged authentication assurance
+
+The verifier maps `acr` and `amr` only from a token that has already passed signature, issuer, audience, expiry and required-claim validation. `IdentityService` applies the configured `PRIVILEGED_AUTHENTICATION_CONTEXTS` allow-list after resolving the subject as a platform operator from VCP-controlled storage. An operator without an approved signed `acr` is rejected with `401`; ordinary company membership is not elevated by assurance claims.
+
+Automated evidence covers rejection of a password-only operator context, acceptance of an approved MFA context, configuration parsing, and signed `acr`/`amr` mapping. This proves the provider-neutral enforcement point. It does not yet prove real MFA enrollment, recovery, conditional access or an interactive step-up journey in the candidate provider.
+
 ## Browser flow
 
 Fastify acts as the backend for frontend. It creates OAuth state and the PKCE verifier, validates the callback, exchanges the authorization code, and retains the provider access token in a bounded server-side session. The browser receives only an HTTP-only, same-site cookie. State-changing requests require a session-bound CSRF value supplied through a custom header. Logout deletes the local session and continues to the provider logout endpoint. Browser code contains no OIDC client or provider token handling.
@@ -43,8 +49,10 @@ The in-memory session adapter is deliberately bounded spike evidence. Production
 | PostgreSQL authorization after verification | Passed |
 | Browser provider-token exclusion | Passed by source enforcement |
 | CSRF enforcement boundary | Passed by source enforcement |
+| Privileged ACR allow-list enforcement | Passed |
+| Signed ACR/AMR mapping | Passed |
 
-Final combined run on 2026-08-25: **12 test files and 51/51 tests passed**, including all six PostgreSQL tests and the live Keycloak integration test.
+Final combined run on 2026-08-27: **12 test files and 56/56 tests passed**, including all six PostgreSQL tests and the live Keycloak integration test.
 
 ## Revocation decision
 

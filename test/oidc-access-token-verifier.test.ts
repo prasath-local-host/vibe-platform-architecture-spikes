@@ -50,8 +50,13 @@ describe("OpenID Connect access-token verification", () => {
     expiresIn?: string;
     key?: CryptoKey;
     kid?: string;
+    acr?: string;
+    amr?: string[];
   } = {}) {
-    return new SignJWT({})
+    return new SignJWT({
+      ...(options.acr ? { acr: options.acr } : {}),
+      ...(options.amr ? { amr: options.amr } : {}),
+    })
       .setProtectedHeader({ alg: "RS256", kid: options.kid ?? "vibe-test" })
       .setIssuer(options.issuer ?? issuer)
       .setAudience(options.audience ?? "vibe-control-plane")
@@ -69,6 +74,17 @@ describe("OpenID Connect access-token verification", () => {
     await expect((await verifier()).verify(`Bearer ${await token()}`)).resolves.toEqual({
       issuer,
       subject: "verified-subject",
+    });
+  });
+
+  it("maps only cryptographically verified authentication assurance claims", async () => {
+    await expect(
+      (await verifier()).verify(`Bearer ${await token({ acr: "mfa", amr: ["pwd", "otp"] })}`),
+    ).resolves.toEqual({
+      issuer,
+      subject: "verified-subject",
+      authenticationContext: "mfa",
+      authenticationMethods: ["pwd", "otp"],
     });
   });
 

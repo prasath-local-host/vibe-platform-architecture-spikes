@@ -4,6 +4,8 @@ import { ForbiddenError } from "./domain.js";
 export interface VerifiedIdentity {
   readonly issuer: string;
   readonly subject: string;
+  readonly authenticationContext?: string;
+  readonly authenticationMethods?: readonly string[];
 }
 
 export interface AccessTokenVerifier {
@@ -31,6 +33,7 @@ export class IdentityService {
   constructor(
     private readonly verifier: AccessTokenVerifier,
     private readonly authorization: AuthorizationRepository,
+    private readonly privilegedAuthenticationContexts: readonly string[] = [],
   ) {}
 
   async resolveActor(
@@ -39,6 +42,13 @@ export class IdentityService {
   ): Promise<Actor> {
     const identity = await this.verifier.verify(authorizationHeader);
     if (await this.authorization.isPlatformOperator(identity.subject)) {
+      if (
+        this.privilegedAuthenticationContexts.length > 0 &&
+        (!identity.authenticationContext ||
+          !this.privilegedAuthenticationContexts.includes(identity.authenticationContext))
+      ) {
+        throw new AuthenticationError("Privileged authentication assurance is required");
+      }
       return { subject: identity.subject, role: "operator" };
     }
     if (await this.authorization.hasCompanyAccess(identity.subject, companyId)) {
@@ -50,6 +60,10 @@ export class IdentityService {
     }
     throw new ForbiddenError();
   }
+}
+
+export function parsePrivilegedAuthenticationContexts(value: string | undefined): string[] {
+  return value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
 }
 
 export class SpikeAccessTokenVerifier implements AccessTokenVerifier {

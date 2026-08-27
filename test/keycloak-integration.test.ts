@@ -23,7 +23,7 @@ describe.skipIf(!issuer)("Keycloak OIDC integration", () => {
       audience: "vibe-control-plane",
       allowHttp: true,
     });
-    await expect(verifier.verify(`Bearer ${payload.access_token}`)).resolves.toEqual({
+    await expect(verifier.verify(`Bearer ${payload.access_token}`)).resolves.toMatchObject({
       issuer,
       subject: "11111111-1111-4111-8111-111111111111",
     });
