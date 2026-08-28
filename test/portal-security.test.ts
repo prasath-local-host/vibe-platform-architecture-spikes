@@ -33,5 +33,8 @@ describe("portal browser credential boundary", () => {
     expect(source).toContain("code_challenge_method: \"S256\"");
     expect(source).toContain('request.headers["x-csrf-token"]');
     expect(source).toContain('request.headers.authorization = `Bearer ${session.accessToken}`');
+    expect(source).toContain("OIDC_INTROSPECTION_ENABLED");
+    expect(source).toContain("providerSessionIsActive(session)");
+    expect(source).toContain('sessions.delete(id!)');
   });
 });

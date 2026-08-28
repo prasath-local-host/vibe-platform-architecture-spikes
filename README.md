@@ -50,6 +50,8 @@ Platform operators can be held to a higher authentication-assurance level with `
 
 The React portal uses a backend-for-frontend session. Fastify owns Authorization Code with PKCE, the code exchange and provider tokens. The browser receives only an HTTP-only, same-site session cookie and a non-secret CSRF value. Production cookies use the `Secure` attribute and `__Host-` prefix; the local HTTP fixture uses an explicitly development-only cookie name.
 
+For prompt provider revocation, configure the BFF as a confidential client with `OIDC_CLIENT_SECRET` and set `OIDC_INTROSPECTION_ENABLED=true`. The BFF introspects its server-held token before honoring a browser session. An inactive token, failed introspection or unavailable provider fails closed with `401`, deletes the local session and expires the browser cookie. Client secrets must come from secret management; the value in the imported local realm is synthetic only.
+
 The included `SpikeAccessTokenVerifier` accepts only `Authorization: Bearer spike:<subject>` and is disabled by default. It remains a fallback for isolated tests only. For an in-memory local run, grants can be supplied explicitly:
 
 ```powershell

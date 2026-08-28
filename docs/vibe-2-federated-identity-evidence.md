@@ -33,6 +33,12 @@ The authenticated session cookie remains `SameSite=Strict`. The separate five-mi
 
 The in-memory session adapter is deliberately bounded spike evidence. Production requires a shared, encrypted session store with expiry, rotation and operational recovery appropriate to the selected deployment topology.
 
+## Prompt provider revocation
+
+The BFF uses a confidential OIDC client and can require token introspection before honoring each browser session. If Keycloak reports the server-held access token inactive—or introspection fails or times out—the request fails closed with `401`, the process-local session is deleted and the browser cookie is expired.
+
+Live integration evidence issues a company-user token, disables that account through the synthetic Keycloak administration boundary, verifies that introspection immediately returns `active: false`, and restores the account in a `finally` block. The browser never receives the client secret or provider token.
+
 ## Automated and live verification
 
 | Evidence | Result |
@@ -55,12 +61,14 @@ The in-memory session adapter is deliberately bounded spike evidence. Production
 | Signed ACR/AMR mapping | Passed |
 | Microsoft Authenticator TOTP enrollment and sign-in | Passed interactively |
 | Cross-site OAuth state callback | Passed after `SameSite=Lax` correction |
+| Provider account disablement changes introspection to inactive | Passed against live Keycloak |
+| BFF inactive/unavailable introspection fails closed | Passed by enforced session boundary |
 
-Final combined run on 2026-08-28: **12 test files and 57/57 tests passed**, including all six PostgreSQL tests and the live Keycloak integration test.
+Final combined run on 2026-08-28: **12 test files and 58/58 tests passed**, including all six PostgreSQL tests and three live Keycloak integration tests.
 
 ## Revocation decision
 
-Company membership and platform-role revocation remains immediate because every request checks VCP-controlled PostgreSQL authorization. A provider-issued access token remains cryptographically valid until its five-minute expiry unless the provider changes key/not-before policy. Per-request token introspection is intentionally not implemented in this spike; production review must choose between short-lived offline JWT validation and introspection based on revocation latency, availability and load requirements.
+Company membership and platform-role revocation remains immediate because every request checks VCP-controlled PostgreSQL authorization. Browser sessions additionally support per-request provider introspection so account disablement fails closed promptly. Approved non-browser API clients still use short-lived offline JWT validation in this spike; their revocation latency, introspection policy, availability and load requirements remain a separate workload/API decision.
 
 ## Operational limits
 

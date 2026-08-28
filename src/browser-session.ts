@@ -48,12 +48,18 @@ function safeEqual(left: string | undefined, right: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-function configured(): { issuer: string; clientId: string; clientSecret?: string; secure: boolean } | undefined {
+function configured(): { issuer: string; clientId: string; clientSecret?: string; secure: boolean; introspectionEnabled: boolean } | undefined {
   const issuer = process.env.OIDC_ISSUER_URL?.replace(/\/$/, "");
   const clientId = process.env.OIDC_CLIENT_ID ?? process.env.OIDC_AUDIENCE;
   if (!issuer || !clientId) return undefined;
   const clientSecret = process.env.OIDC_CLIENT_SECRET;
-  return { issuer, clientId, ...(clientSecret ? { clientSecret } : {}), secure: process.env.NODE_ENV === "production" };
+  return {
+    issuer,
+    clientId,
+    ...(clientSecret ? { clientSecret } : {}),
+    secure: process.env.NODE_ENV === "production",
+    introspectionEnabled: process.env.OIDC_INTROSPECTION_ENABLED === "true",
+  };
 }
 
 export async function registerBrowserSessions(server: FastifyInstance): Promise<void> {
@@ -63,8 +69,33 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
   const stateCookie = config.secure ? "__Host-vcp_oidc_state" : "vcp_oidc_state";
   const discovery = await fetch(`${config.issuer}/.well-known/openid-configuration`);
   if (!discovery.ok) throw new Error("OIDC discovery failed for browser sessions");
-  const metadata = await discovery.json() as { authorization_endpoint: string; token_endpoint: string; end_session_endpoint?: string };
+  const metadata = await discovery.json() as { authorization_endpoint: string; token_endpoint: string; introspection_endpoint?: string; end_session_endpoint?: string };
+  if (config.introspectionEnabled && (!config.clientSecret || !metadata.introspection_endpoint)) {
+    throw new Error("OIDC introspection requires a confidential client and provider endpoint");
+  }
   const verifier = await OidcAccessTokenVerifier.create({ issuer: config.issuer, audience: process.env.OIDC_AUDIENCE ?? config.clientId, allowHttp: process.env.OIDC_ALLOW_HTTP === "true" });
+  const introspectionEnabled = config.introspectionEnabled;
+  const introspectionClientId = config.clientId;
+  const introspectionClientSecret = config.clientSecret;
+
+  async function providerSessionIsActive(session: BrowserSession): Promise<boolean> {
+    if (!introspectionEnabled) return true;
+    try {
+      const response = await fetch(metadata.introspection_endpoint!, {
+        method: "POST",
+        headers: {
+          authorization: `Basic ${Buffer.from(`${introspectionClientId}:${introspectionClientSecret!}`).toString("base64")}`,
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({ token: session.accessToken, token_type_hint: "access_token" }),
+        signal: AbortSignal.timeout(3_000),
+      });
+      if (!response.ok) return false;
+      return (await response.json() as { active?: unknown }).active === true;
+    } catch {
+      return false;
+    }
+  }
 
   server.get("/auth/login", async (_request, reply) => {
     const now = Date.now();
@@ -102,9 +133,9 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
   server.get("/auth/session", async (request, reply) => {
     const id = cookies(request)[sessionCookie];
     const session = id ? sessions.get(id) : undefined;
-    if (!session || session.expiresAt < Date.now()) {
+    if (!session || session.expiresAt < Date.now() || !(await providerSessionIsActive(session))) {
       if (id) sessions.delete(id);
-      return reply.code(401).send({ message: "Authentication is required" });
+      return reply.header("set-cookie", cookie(sessionCookie, "", 0, config.secure)).code(401).send({ message: "Authentication is required" });
     }
     return reply.header("cache-control", "no-store").send({ subject: session.subject, displayName: session.displayName, csrfToken: session.csrfToken });
   });
@@ -118,19 +149,23 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
     return reply.header("set-cookie", cookie(sessionCookie, "", 0, config.secure)).send({ logoutUrl });
   });
 
-  server.addHook("onRequest", (request, reply, done) => {
-    if (request.url.startsWith("/auth/")) return done();
+  server.addHook("onRequest", async (request, reply) => {
+    if (request.url.startsWith("/auth/")) return;
     const id = cookies(request)[sessionCookie];
     const session = id ? sessions.get(id) : undefined;
     if (!session || session.expiresAt < Date.now()) {
       if (id) sessions.delete(id);
-      return done();
+      return;
+    }
+    if (!(await providerSessionIsActive(session))) {
+      sessions.delete(id!);
+      await reply.header("set-cookie", cookie(sessionCookie, "", 0, config.secure)).code(401).send({ message: "Authentication is required" });
+      return;
     }
     request.headers.authorization = `Bearer ${session.accessToken}`;
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !safeEqual(request.headers["x-csrf-token"] as string | undefined, session.csrfToken)) {
-      void reply.code(403).send({ message: "CSRF validation failed" });
+      await reply.code(403).send({ message: "CSRF validation failed" });
       return;
     }
-    done();
   });
 }
