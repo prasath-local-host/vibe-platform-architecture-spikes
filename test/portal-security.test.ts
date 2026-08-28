@@ -26,7 +26,9 @@ describe("portal browser credential boundary", () => {
 
   it("requires the backend session and CSRF boundary", async () => {
     const source = await readFile(new URL("../src/browser-session.ts", import.meta.url), "utf8");
-    expect(source).toContain("HttpOnly; SameSite=Strict");
+    expect(source).toContain('sameSite: "Strict" | "Lax" = "Strict"');
+    expect(source).toContain("HttpOnly; SameSite=${sameSite}");
+    expect(source).toContain('cookie(stateCookie, state, 300, config.secure, "Lax")');
     expect(source).toContain('config.secure ? "__Host-vcp_session" : "vcp_session"');
     expect(source).toContain("code_challenge_method: \"S256\"");
     expect(source).toContain('request.headers["x-csrf-token"]');

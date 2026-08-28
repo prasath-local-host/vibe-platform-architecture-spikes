@@ -29,6 +29,8 @@ Automated evidence covers rejection of a password-only operator context, accepta
 
 Fastify acts as the backend for frontend. It creates OAuth state and the PKCE verifier, validates the callback, exchanges the authorization code, and retains the provider access token in a bounded server-side session. The browser receives only an HTTP-only, same-site cookie. State-changing requests require a session-bound CSRF value supplied through a custom header. Logout deletes the local session and continues to the provider logout endpoint. Browser code contains no OIDC client or provider token handling.
 
+The authenticated session cookie remains `SameSite=Strict`. The separate five-minute OAuth state cookie uses `SameSite=Lax`, because standards-compliant top-level callbacks must return from an identity provider that can be on a different site. State is still random, HTTP-only, single-use, server-bound and compared in constant time. The interactive Keycloak/Microsoft Authenticator journey exposed and validated this boundary.
+
 The in-memory session adapter is deliberately bounded spike evidence. Production requires a shared, encrypted session store with expiry, rotation and operational recovery appropriate to the selected deployment topology.
 
 ## Automated and live verification
@@ -51,8 +53,10 @@ The in-memory session adapter is deliberately bounded spike evidence. Production
 | CSRF enforcement boundary | Passed by source enforcement |
 | Privileged ACR allow-list enforcement | Passed |
 | Signed ACR/AMR mapping | Passed |
+| Microsoft Authenticator TOTP enrollment and sign-in | Passed interactively |
+| Cross-site OAuth state callback | Passed after `SameSite=Lax` correction |
 
-Final combined run on 2026-08-27: **12 test files and 56/56 tests passed**, including all six PostgreSQL tests and the live Keycloak integration test.
+Final combined run on 2026-08-28: **12 test files and 57/57 tests passed**, including all six PostgreSQL tests and the live Keycloak integration test.
 
 ## Revocation decision
 

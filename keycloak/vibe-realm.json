@@ -4,8 +4,9 @@
   "displayName": "Vibe Coding Platform",
   "accessTokenLifespan": 300,
   "otpPolicyType": "totp",
-  "otpPolicyAlgorithm": "HmacSHA256",
+  "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyDigits": 6,
+  "otpPolicyLookAheadWindow": 1,
   "otpPolicyPeriod": 30,
   "clients": [
     {

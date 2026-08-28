@@ -31,8 +31,14 @@ function cookies(request: FastifyRequest): Record<string, string> {
   }));
 }
 
-function cookie(name: string, value: string, maxAge: number, secure: boolean): string {
-  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
+function cookie(
+  name: string,
+  value: string,
+  maxAge: number,
+  secure: boolean,
+  sameSite: "Strict" | "Lax" = "Strict",
+): string {
+  return `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
 function safeEqual(left: string | undefined, right: string): boolean {
@@ -70,7 +76,7 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
     const redirectUri = `${process.env.PUBLIC_ORIGIN ?? "http://127.0.0.1:3000"}/auth/callback`;
     const url = new URL(metadata.authorization_endpoint);
     url.search = new URLSearchParams({ client_id: config.clientId, redirect_uri: redirectUri, response_type: "code", scope: "openid profile email", state, code_challenge: challenge, code_challenge_method: "S256" }).toString();
-    return reply.header("set-cookie", cookie(stateCookie, state, 300, config.secure)).redirect(url.toString());
+    return reply.header("set-cookie", cookie(stateCookie, state, 300, config.secure, "Lax")).redirect(url.toString());
   });
 
   server.get<{ Querystring: { code?: string; state?: string; error?: string } }>("/auth/callback", async (request, reply) => {
@@ -90,7 +96,7 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
     const id = base64url(randomBytes(32));
     const lifetime = Math.min(tokens.expires_in ?? 300, 900);
     sessions.set(id, { accessToken: tokens.access_token, subject: payload.sub, displayName: payload.name ?? payload.preferred_username ?? payload.sub, csrfToken: base64url(randomBytes(32)), expiresAt: Date.now() + lifetime * 1000 });
-    return reply.header("set-cookie", [cookie(sessionCookie, id, lifetime, config.secure), cookie(stateCookie, "", 0, config.secure)]).redirect("/portal/");
+    return reply.header("set-cookie", [cookie(sessionCookie, id, lifetime, config.secure), cookie(stateCookie, "", 0, config.secure, "Lax")]).redirect("/portal/");
   });
 
   server.get("/auth/session", async (request, reply) => {
