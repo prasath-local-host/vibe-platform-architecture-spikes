@@ -17,6 +17,12 @@ export interface AuthorizationRepository {
   hasCompanyAccess(subject: string, companyId: string): Promise<boolean>;
 }
 
+export type SensitiveAction = "application.register" | "company.access.change";
+
+export interface AuthenticationRequirement {
+  readonly sensitiveAction: SensitiveAction;
+}
+
 export class AuthenticationError extends Error {
   constructor(message = "Authentication is required") {
     super(message);
@@ -33,25 +39,22 @@ export class IdentityService {
   constructor(
     private readonly verifier: AccessTokenVerifier,
     private readonly authorization: AuthorizationRepository,
-    private readonly privilegedAuthenticationContexts: readonly string[] = [],
+    private readonly stepUpAuthenticationContexts: readonly string[] = [],
+    private readonly stepUpAuthenticationMethods: readonly string[] = [],
   ) {}
 
   async resolveActor(
     authorizationHeader: string | undefined,
     companyId: string,
+    requirement?: AuthenticationRequirement,
   ): Promise<Actor> {
     const identity = await this.verifier.verify(authorizationHeader);
     if (await this.authorization.isPlatformOperator(identity.subject)) {
-      if (
-        this.privilegedAuthenticationContexts.length > 0 &&
-        (!identity.authenticationContext ||
-          !this.privilegedAuthenticationContexts.includes(identity.authenticationContext))
-      ) {
-        throw new AuthenticationError("Privileged authentication assurance is required");
-      }
+      if (requirement) this.requireStepUp(identity, requirement.sensitiveAction);
       return { subject: identity.subject, role: "operator" };
     }
     if (await this.authorization.hasCompanyAccess(identity.subject, companyId)) {
+      if (requirement) this.requireStepUp(identity, requirement.sensitiveAction);
       return {
         subject: identity.subject,
         role: "company-user",
@@ -60,9 +63,37 @@ export class IdentityService {
     }
     throw new ForbiddenError();
   }
+
+  private requireStepUp(identity: VerifiedIdentity, action: SensitiveAction): void {
+    if (
+      this.stepUpAuthenticationContexts.length === 0 &&
+      this.stepUpAuthenticationMethods.length === 0
+    ) {
+      throw new IdentityConfigurationError(
+        `Step-up authentication policy is not configured for ${action}`,
+      );
+    }
+    const contextAccepted =
+      !!identity.authenticationContext &&
+      this.stepUpAuthenticationContexts.includes(identity.authenticationContext);
+    const methods = new Set(identity.authenticationMethods ?? []);
+    const methodsAccepted =
+      this.stepUpAuthenticationMethods.length > 0 &&
+      this.stepUpAuthenticationMethods.every((method) => methods.has(method));
+    if (!contextAccepted && !methodsAccepted) {
+      throw new AuthenticationError(`Step-up authentication is required for ${action}`);
+    }
+  }
 }
 
-export function parsePrivilegedAuthenticationContexts(value: string | undefined): string[] {
+export function parseStepUpAuthenticationContexts(value: string | undefined): string[] {
+  return value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
+}
+
+/** @deprecated Use parseStepUpAuthenticationContexts. Kept for configuration compatibility. */
+export const parsePrivilegedAuthenticationContexts = parseStepUpAuthenticationContexts;
+
+export function parseStepUpAuthenticationMethods(value: string | undefined): string[] {
   return value?.split(",").map((entry) => entry.trim()).filter(Boolean) ?? [];
 }
 
@@ -74,7 +105,12 @@ export class SpikeAccessTokenVerifier implements AccessTokenVerifier {
     if (!header?.startsWith("Bearer spike:")) throw new AuthenticationError();
     const subject = header.slice("Bearer spike:".length).trim();
     if (!subject || subject.length > 255) throw new AuthenticationError();
-    return { issuer: "urn:vibe:local-spike", subject };
+    return {
+      issuer: "urn:vibe:local-spike",
+      subject,
+      authenticationContext: "urn:vibe:local-spike:mfa",
+      authenticationMethods: ["pwd", "otp"],
+    };
   }
 }
 

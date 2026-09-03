@@ -6,6 +6,7 @@ import {
   IdentityService,
   InMemoryAuthorizationRepository,
   SpikeAccessTokenVerifier,
+  type AccessTokenVerifier,
 } from "../src/identity.js";
 import {
   InMemoryApplicationRepository,
@@ -23,6 +24,8 @@ function fixture() {
       { subject: "disabled-user", companyId: "company-a", active: false },
       { subject: "operator-a", platformOperator: true },
     ]),
+    [],
+    ["otp"],
   );
   return {
     audit,
@@ -135,6 +138,44 @@ describe("controller authorization", () => {
         authorization: "Bearer spike:disabled-user",
       }),
       403,
+    );
+  });
+
+  it("allows ordinary reads but requires step-up assurance for application administration", async () => {
+    const audit = new InMemoryAuditRepository();
+    const passwordOnlyVerifier: AccessTokenVerifier = {
+      async verify() {
+        return {
+          issuer: "https://identity.example.test",
+          subject: "user-a",
+          authenticationMethods: ["pwd"],
+        };
+      },
+    };
+    const controller = new AppController(
+      new ApplicationService(new InMemoryApplicationRepository(audit), audit),
+      new IdentityService(
+        passwordOnlyVerifier,
+        new InMemoryAuthorizationRepository([
+          { subject: "user-a", companyId: "company-a" },
+        ]),
+        [],
+        ["otp"],
+      ),
+    );
+
+    await expect(controller.list("company-a", { authorization: "Bearer ignored" })).resolves.toEqual([]);
+    await expectStatus(
+      controller.register(
+        "company-a",
+        { authorization: "Bearer ignored" },
+        {
+          name: "Sensitive administration",
+          repositoryUrl: "https://example.test/sensitive",
+          idempotencyKey: "sensitive-request",
+        },
+      ),
+      401,
     );
   });
 });

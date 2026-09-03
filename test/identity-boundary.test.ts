@@ -6,18 +6,24 @@ import {
   IdentityService,
   InMemoryAuthorizationRepository,
   parseSpikeGrants,
-  parsePrivilegedAuthenticationContexts,
+  parseStepUpAuthenticationContexts,
+  parseStepUpAuthenticationMethods,
   SpikeAccessTokenVerifier,
   type AccessTokenVerifier,
 } from "../src/identity.js";
 
 class FixedVerifier implements AccessTokenVerifier {
-  constructor(private readonly subject: string, private readonly authenticationContext?: string) {}
+  constructor(
+    private readonly subject: string,
+    private readonly authenticationContext?: string,
+    private readonly authenticationMethods?: readonly string[],
+  ) {}
   async verify() {
     return {
       issuer: "https://identity.example.test",
       subject: this.subject,
       ...(this.authenticationContext ? { authenticationContext: this.authenticationContext } : {}),
+      ...(this.authenticationMethods ? { authenticationMethods: this.authenticationMethods } : {}),
     };
   }
 }
@@ -55,7 +61,7 @@ describe("identity integration boundary", () => {
     });
   });
 
-  it("rejects a platform operator without an approved MFA assurance context", async () => {
+  it("allows an operator read without step-up authentication", async () => {
     const authorization = new InMemoryAuthorizationRepository([
       { subject: "operator-a", platformOperator: true },
     ]);
@@ -64,28 +70,62 @@ describe("identity integration boundary", () => {
       authorization,
       ["mfa"],
     );
-    await expect(identity.resolveActor("Bearer ignored", "company-a")).rejects.toThrow(
-      "Privileged authentication assurance is required",
-    );
-  });
-
-  it("accepts a platform operator with an approved MFA assurance context", async () => {
-    const identity = new IdentityService(
-      new FixedVerifier("operator-a", "mfa"),
-      new InMemoryAuthorizationRepository([{ subject: "operator-a", platformOperator: true }]),
-      ["mfa"],
-    );
     await expect(identity.resolveActor("Bearer ignored", "company-a")).resolves.toEqual({
       subject: "operator-a",
       role: "operator",
     });
   });
 
+  it("rejects a sensitive operation without approved step-up assurance", async () => {
+    const identity = new IdentityService(
+      new FixedVerifier("operator-a", "password-only", ["pwd"]),
+      new InMemoryAuthorizationRepository([{ subject: "operator-a", platformOperator: true }]),
+      ["mfa"],
+      ["otp"],
+    );
+    await expect(
+      identity.resolveActor("Bearer ignored", "company-a", {
+        sensitiveAction: "company.access.change",
+      }),
+    ).rejects.toThrow("Step-up authentication is required for company.access.change");
+  });
+
+  it("accepts a sensitive operation with an approved MFA method", async () => {
+    const identity = new IdentityService(
+      new FixedVerifier("operator-a", "password-only", ["pwd", "otp"]),
+      new InMemoryAuthorizationRepository([{ subject: "operator-a", platformOperator: true }]),
+      ["mfa"],
+      ["otp"],
+    );
+    await expect(identity.resolveActor("Bearer ignored", "company-a", {
+      sensitiveAction: "company.access.change",
+    })).resolves.toEqual({
+      subject: "operator-a",
+      role: "operator",
+    });
+  });
+
+  it("fails closed when a sensitive-operation step-up policy is absent", async () => {
+    const identity = new IdentityService(
+      new FixedVerifier("user-a", "mfa", ["otp"]),
+      new InMemoryAuthorizationRepository([{ subject: "user-a", companyId: "company-a" }]),
+    );
+    await expect(
+      identity.resolveActor("Bearer ignored", "company-a", {
+        sensitiveAction: "application.register",
+      }),
+    ).rejects.toBeInstanceOf(IdentityConfigurationError);
+  });
+
   it("parses the configured privileged assurance allow-list", () => {
-    expect(parsePrivilegedAuthenticationContexts("mfa, urn:example:loa:2, ")).toEqual([
+    expect(parseStepUpAuthenticationContexts("mfa, urn:example:loa:2, ")).toEqual([
       "mfa",
       "urn:example:loa:2",
     ]);
+  });
+
+  it("parses the configured step-up authentication methods", () => {
+    expect(parseStepUpAuthenticationMethods("pwd, otp, ")).toEqual(["pwd", "otp"]);
   });
 
   it("does not promote a company member to platform operator", async () => {
@@ -131,6 +171,8 @@ describe("identity integration boundary", () => {
     await expect(verifier.verify("Bearer spike:user-a")).resolves.toEqual({
       issuer: "urn:vibe:local-spike",
       subject: "user-a",
+      authenticationContext: "urn:vibe:local-spike:mfa",
+      authenticationMethods: ["pwd", "otp"],
     });
   });
 

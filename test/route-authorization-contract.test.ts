@@ -50,6 +50,8 @@ describe("documented route authorization contract", () => {
       new InMemoryAuthorizationRepository([
         { subject: "user-a", companyId: "company-a" },
       ]),
+      [],
+      ["otp"],
     );
     const applications = new AppController(
       new ApplicationService(new InMemoryApplicationRepository(audit), audit),

@@ -97,6 +97,10 @@ export class AppController {
     type: ApplicationResponse,
     description: "New or previously registered idempotent application result.",
   })
+  @ApiUnauthorizedResponse({
+    type: HttpErrorResponse,
+    description: "Authentication is missing or does not satisfy the configured step-up policy for application administration.",
+  })
   async register(
     @Param("companyId") companyId: string,
     @Headers() headers: Record<string, string | undefined>,
@@ -107,6 +111,7 @@ export class AppController {
       const actor = await this.identity.resolveActor(
         headers.authorization,
         companyId,
+        { sensitiveAction: "application.register" },
       );
       return await this.service.register({
         actor, companyId, ...body,

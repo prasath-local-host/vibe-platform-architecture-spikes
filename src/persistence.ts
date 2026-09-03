@@ -10,7 +10,8 @@ import {
   IdentityService,
   InMemoryAuthorizationRepository,
   parseSpikeGrants,
-  parsePrivilegedAuthenticationContexts,
+  parseStepUpAuthenticationContexts,
+  parseStepUpAuthenticationMethods,
   SpikeAccessTokenVerifier,
 } from "./identity.js";
 import { PostgresAuthorizationRepository } from "./postgres-authorization-repository.js";
@@ -34,8 +35,12 @@ export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
   const logger = new StructuredLogger();
-  const privilegedContexts = parsePrivilegedAuthenticationContexts(
-    process.env.PRIVILEGED_AUTHENTICATION_CONTEXTS,
+  const stepUpContexts = parseStepUpAuthenticationContexts(
+    process.env.STEP_UP_AUTHENTICATION_CONTEXTS ??
+      process.env.PRIVILEGED_AUTHENTICATION_CONTEXTS,
+  );
+  const stepUpMethods = parseStepUpAuthenticationMethods(
+    process.env.STEP_UP_AUTHENTICATION_METHODS,
   );
   const verifier = process.env.OIDC_ISSUER_URL && process.env.OIDC_AUDIENCE
     ? await OidcAccessTokenVerifier.create({
@@ -64,7 +69,8 @@ export async function createApplicationRuntime(
         new InMemoryAuthorizationRepository(
           parseSpikeGrants(process.env.SPIKE_IDENTITY_GRANTS),
         ),
-        privilegedContexts,
+        stepUpContexts,
+        stepUpMethods,
       ),
     };
   }
@@ -87,7 +93,8 @@ export async function createApplicationRuntime(
     identity: new IdentityService(
       verifier,
       new PostgresAuthorizationRepository(db),
-      privilegedContexts,
+      stepUpContexts,
+      stepUpMethods,
     ),
   };
 }

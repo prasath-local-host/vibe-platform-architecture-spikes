@@ -114,7 +114,7 @@
             }
           },
           "401": {
-            "description": "Bearer token is missing, malformed, expired, or cannot be verified.",
+            "description": "Authentication is missing or does not satisfy the configured step-up policy for application administration.",
             "content": {
               "application/json": {
                 "schema": {
