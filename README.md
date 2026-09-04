@@ -55,6 +55,8 @@ Successful build jobs now publish only files under configured output directories
 
 Test deployments now have a durable release-record boundary. A release can reference only a completed build and copies its artifact UUID and digest. The asynchronous release worker records deployment URL only after deployment, marks the release healthy only after an explicit health check, and otherwise stores a terminal failure. Each new release captures the latest healthy release as its rollback target. PostgreSQL uses idempotent creation, `SKIP LOCKED` claiming and transactional terminal audit evidence. Authenticated routes expose this lifecycle. The optional Docker adapter materializes the verified artifact, uses a digest-pinned runtime with a read-only mount and reduced privileges, publishes only to loopback, and performs a bounded HTTP health check. When a candidate fails, the worker restarts the captured healthy container, removes the failed candidate, verifies the restored endpoint, and records `rolled-back`; an unverified rollback remains `failed`. Production promotion and ingress switching remain later boundaries.
 
+Stable application routing now has an `IngressRouter` port and a filesystem-backed control adapter. It accepts only credential-free loopback HTTP upstreams, derives a stable tenant/application path, serializes competing switches, replaces route records atomically, and returns the displaced route as rollback evidence. A datacenter reverse-proxy reconciler and release-worker activation handoff remain separate follow-on boundaries.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:
