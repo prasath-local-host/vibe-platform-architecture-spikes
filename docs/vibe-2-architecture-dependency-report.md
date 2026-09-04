@@ -22,7 +22,7 @@ Dependencies must point inward:
 | Check | Result |
 | --- | --- |
 | Classified production modules | 39 |
-| Local dependency edges | 101 |
+| Local dependency edges | 104 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -66,6 +66,7 @@ Dependencies must point inward:
 | `build-controller.ts` | adapter | `domain.ts` | domain |
 | `build-controller.ts` | adapter | `identity.ts` | application |
 | `build-controller.ts` | adapter | `openapi.ts` | adapter |
+| `build-job-engine.ts` | adapter | `artifact-service.ts` | application |
 | `build-job-engine.ts` | adapter | `build-job-service.ts` | application |
 | `build-job-engine.ts` | adapter | `build-pipeline.ts` | application |
 | `build-job-engine.ts` | adapter | `build-service.ts` | application |
@@ -73,6 +74,7 @@ Dependencies must point inward:
 | `build-job-service.ts` | application | `application-service.ts` | application |
 | `build-job-service.ts` | application | `domain.ts` | domain |
 | `build-job-service.ts` | application | `observability.ts` | application |
+| `build-pipeline.ts` | application | `artifact-service.ts` | application |
 | `build-pipeline.ts` | application | `build-service.ts` | application |
 | `build-pipeline.ts` | application | `dependency-restoration.ts` | application |
 | `build-worker-host.ts` | adapter | `build-job-service.ts` | application |
@@ -116,6 +118,7 @@ Dependencies must point inward:
 | `persistence.ts` | composition | `build-job-service.ts` | application |
 | `persistence.ts` | composition | `database.ts` | adapter |
 | `persistence.ts` | composition | `docker-build-pipeline.ts` | adapter |
+| `persistence.ts` | composition | `filesystem-artifact-store.ts` | adapter |
 | `persistence.ts` | composition | `git-source-artifact-repository.ts` | adapter |
 | `persistence.ts` | composition | `git-source-repository.ts` | adapter |
 | `persistence.ts` | composition | `identity.ts` | application |

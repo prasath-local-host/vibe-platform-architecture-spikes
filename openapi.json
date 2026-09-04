@@ -1031,6 +1031,10 @@
       "BuildResultResponse": {
         "type": "object",
         "properties": {
+          "artifactId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "artifactDigest": {
             "type": "string",
             "pattern": "^sha256:[0-9a-f]{64}$"
@@ -1050,6 +1054,7 @@
           }
         },
         "required": [
+          "artifactId",
           "artifactDigest",
           "restorationStatus",
           "buildStatus"

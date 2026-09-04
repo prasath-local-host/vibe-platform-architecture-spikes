@@ -66,6 +66,7 @@ export interface BuildRecord {
   readonly status: BuildStatus;
   readonly attempts: number;
   readonly result?: {
+    readonly artifactId: string;
     readonly artifactDigest: string;
     readonly restorationStatus: "succeeded";
     readonly buildStatus: "succeeded" | "failed";

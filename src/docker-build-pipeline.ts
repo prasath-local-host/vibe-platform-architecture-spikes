@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, normalize, relative } from "node:path";
+import { dirname, isAbsolute, join, normalize, relative, sep } from "node:path";
 import { promisify } from "node:util";
 import { sourceArtifactDigest, verifySourceArtifact } from "./build-service.js";
 import type { BuildPipeline, BuildPipelineRequest, BuildPipelineResult } from "./build-pipeline.js";
@@ -22,6 +22,9 @@ export interface DockerBuildPipelineConfig {
   readonly buildTimeoutMs?: number;
   readonly maximumSourceBytes?: number;
   readonly maximumOutputBytes?: number;
+  readonly outputDirectories?: readonly string[];
+  readonly maximumArtifactFiles?: number;
+  readonly maximumArtifactBytes?: number;
 }
 
 function safePath(value: string): string {
@@ -139,7 +142,31 @@ export class DockerBuildPipeline implements BuildPipeline {
         output: built.output,
         outputTruncated: built.outputTruncated,
       };
-      return { status: build.status === "succeeded" ? "succeeded" : "build-failed", restoration, build };
+      if (build.status === "failed") return { status: "build-failed", restoration, build };
+      const outputFiles: { path: string; content: Uint8Array }[] = [];
+      let outputBytes = 0;
+      const outputDirectories = this.config.outputDirectories ?? ["dist"];
+      const collect = async (current: string): Promise<void> => {
+        for (const entry of (await readdir(current, { withFileTypes: true })).sort((left, right) => left.name.localeCompare(right.name))) {
+          const absolute = join(current, entry.name);
+          const metadata = await lstat(absolute);
+          if (metadata.isSymbolicLink()) throw new Error("Build output contains a symbolic link");
+          if (metadata.isDirectory()) { await collect(absolute); continue; }
+          if (!metadata.isFile()) throw new Error("Build output contains an unsupported filesystem entry");
+          outputBytes += metadata.size;
+          if (outputBytes > (this.config.maximumArtifactBytes ?? 100 * 1024 * 1024)) throw new Error("Build output exceeds the configured byte limit");
+          if (outputFiles.length >= (this.config.maximumArtifactFiles ?? 10_000)) throw new Error("Build output exceeds the configured file-count limit");
+          outputFiles.push({ path: relative(workspace, absolute).split(sep).join("/"), content: await readFile(absolute) });
+        }
+      };
+      for (const configured of outputDirectories) {
+        const directory = join(workspace, safePath(configured));
+        if (relative(workspace, directory).startsWith("..")) throw new Error("Build output escaped its workspace");
+        try { await collect(directory); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+      }
+      if (!outputFiles.length) throw new Error("Build produced no files in configured output directories");
+      return { status: "succeeded", restoration, build, outputFiles };
     } finally {
       await rm(workspace, { recursive: true, force: true });
     }

@@ -240,7 +240,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
     };
     const [first, retry] = await Promise.all([builds.submit(command), builds.submit(command)]);
     expect(retry.id).toBe(first.id);
-    const engine = { async execute() { return { artifactDigest: `sha256:${"a".repeat(64)}`, restorationStatus: "succeeded" as const, buildStatus: "succeeded" as const }; } };
+    const engine = { async execute() { return { artifactId: "33333333-3333-4333-8333-333333333333", artifactDigest: `sha256:${"a".repeat(64)}`, restorationStatus: "succeeded" as const, buildStatus: "succeeded" as const }; } };
     const outcomes = await Promise.all([
       new BuildJobWorker("build-worker-one", repository, engine).tick(),
       new BuildJobWorker("build-worker-two", repository, engine).tick(),

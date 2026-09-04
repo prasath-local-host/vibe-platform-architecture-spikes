@@ -31,6 +31,7 @@ import { PostgresBuildRecordRepository } from "./postgres-build-record-repositor
 import { GitHubSourceArtifactRepository } from "./git-source-artifact-repository.js";
 import { DockerBuildPipeline } from "./docker-build-pipeline.js";
 import { SourceBuildJobEngine, UnavailableBuildJobEngine } from "./build-job-engine.js";
+import { FilesystemArtifactStore } from "./filesystem-artifact-store.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -69,10 +70,11 @@ export async function createApplicationRuntime(
   const buildConfigurationComplete = Boolean(
     process.env.GITHUB_SOURCE_ENABLED === "true" &&
     process.env.BUILD_PIPELINE_IMAGE &&
-    process.env.BUILD_EGRESS_NETWORK,
+    process.env.BUILD_EGRESS_NETWORK &&
+    process.env.BUILD_ARTIFACT_ROOT,
   );
   if (process.env.BUILD_WORKER_ENABLED === "true" && !buildConfigurationComplete) {
-    throw new Error("Build worker requires GitHub source, a digest-pinned pipeline image, and an egress network");
+    throw new Error("Build worker requires GitHub source, a digest-pinned pipeline image, an egress network, and artifact storage");
   }
   const buildEngine = buildConfigurationComplete
     ? new SourceBuildJobEngine(
@@ -87,7 +89,10 @@ export async function createApplicationRuntime(
           egressNetwork: process.env.BUILD_EGRESS_NETWORK!,
           registryUrl: process.env.BUILD_REGISTRY_URL ?? "https://registry.npmjs.org/",
           allowedRegistryOrigins: (process.env.BUILD_ALLOWED_REGISTRY_ORIGINS ?? "https://registry.npmjs.org").split(",").map((value) => value.trim()),
+          outputDirectories: (process.env.BUILD_OUTPUT_DIRECTORIES ?? "dist").split(",").map((value) => value.trim()),
         }),
+        new FilesystemArtifactStore(process.env.BUILD_ARTIFACT_ROOT!),
+        Number(process.env.BUILD_ARTIFACT_RETENTION_DAYS ?? 30),
       )
     : new UnavailableBuildJobEngine();
   if (!connectionString) {

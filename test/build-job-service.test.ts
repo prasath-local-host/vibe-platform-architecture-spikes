@@ -43,7 +43,7 @@ describe("asynchronous build jobs", () => {
     const worker = new BuildJobWorker("worker-one", repository, {
       async execute(build) {
         expect(build).toMatchObject({ sourceRevision: "a".repeat(40), packageManager: "npm", script: "build" });
-        return { artifactDigest: `sha256:${"b".repeat(64)}`, restorationStatus: "succeeded", buildStatus: "succeeded" };
+        return { artifactId: "33333333-3333-4333-8333-333333333333", artifactDigest: `sha256:${"b".repeat(64)}`, restorationStatus: "succeeded", buildStatus: "succeeded" };
       },
     });
     expect(await worker.tick()).toBe(true);

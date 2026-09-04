@@ -1,4 +1,4 @@
-import { access, writeFile } from "node:fs/promises";
+import { access, mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createSourceArtifact } from "../src/build-service.js";
@@ -28,10 +28,14 @@ describe("Docker build pipeline handoff", () => {
       workspace ||= current;
       expect(current).toBe(workspace);
       await expect(access(join(current, "src", "main.ts"))).resolves.toBeUndefined();
+      if (invocations.length === 2) {
+        await mkdir(join(current, "dist"));
+        await writeFile(join(current, "dist", "app.js"), "built");
+      }
       return { exitCode: 0, output: "ok", outputTruncated: false };
     });
     await expect(pipeline.execute({ artifact: artifact(), packageManager: "npm", script: "build" }))
-      .resolves.toMatchObject({ status: "succeeded", restoration: { status: "succeeded" }, build: { status: "succeeded" } });
+      .resolves.toMatchObject({ status: "succeeded", restoration: { status: "succeeded" }, build: { status: "succeeded" }, outputFiles: [{ path: "dist/app.js" }] });
     expect(invocations).toHaveLength(2);
     expect(invocations[0]).toEqual(expect.arrayContaining(["--network", "vcp-dependency-egress", "npm", "ci", "--ignore-scripts"]));
     expect(invocations[1]).toEqual(expect.arrayContaining(["--network", "none", "npm", "run", "build"]));

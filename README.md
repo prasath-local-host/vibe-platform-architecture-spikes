@@ -51,6 +51,8 @@ Authenticated build routes are available at `POST/GET /companies/:companyId/appl
 
 Build outputs now have a content-addressed artifact-store boundary and a bounded filesystem adapter. Artifacts retain tenant, application, build, source revision, SHA-256 digest, byte count, creation time and explicit expiry. Writes are atomic, reads revalidate content integrity and company ownership, binary files round-trip without text conversion, and retention cleanup removes only expired records. This adapter is architecture evidence; production object storage, malware scanning and release records remain subsequent boundaries.
 
+Successful build jobs now publish only files under configured output directories (default `dist`) after the networkless build completes. Output collection rejects links and special entries and applies byte/file-count limits. The artifact is stored before the build record completes, and its UUID plus digest become durable build evidence. `BUILD_ARTIFACT_ROOT` is mandatory when the worker is enabled; `BUILD_OUTPUT_DIRECTORIES` and `BUILD_ARTIFACT_RETENTION_DAYS` control publication. Production object storage, malware scanning and release records remain subsequent boundaries.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

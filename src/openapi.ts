@@ -65,6 +65,8 @@ export class SubmitBuildRequest {
 }
 
 export class BuildResultResponse {
+  @ApiProperty({ type: String, format: "uuid" })
+  artifactId!: string;
   @ApiProperty({ type: String, pattern: "^sha256:[0-9a-f]{64}$" })
   artifactDigest!: string;
   @ApiProperty({ type: String, enum: ["succeeded"] })
