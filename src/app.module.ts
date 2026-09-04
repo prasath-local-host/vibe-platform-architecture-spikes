@@ -10,6 +10,7 @@ import { BuildWorkerHost } from "./build-worker-host.js";
 import { ReleaseController } from "./release-controller.js";
 import { ReleaseService, ReleaseWorker } from "./release-service.js";
 import { ReleaseWorkerHost } from "./release-worker-host.js";
+import { IngressReconcilerHost } from "./ingress-reconciler-host.js";
 import { IdentityService } from "./identity.js";
 import {
   createApplicationRuntime,
@@ -64,6 +65,11 @@ const APPLICATION_RUNTIME = Symbol("APPLICATION_RUNTIME");
       provide: ReleaseWorker,
       inject: [APPLICATION_RUNTIME],
       useFactory: (runtime: ApplicationRuntime) => runtime.releaseWorker,
+    },
+    {
+      provide: IngressReconcilerHost,
+      inject: [APPLICATION_RUNTIME],
+      useFactory: (runtime: ApplicationRuntime) => new IngressReconcilerHost(runtime.ingressReconciler),
     },
     AssessmentWorkerHost,
     BuildWorkerHost,

@@ -18,4 +18,5 @@ export interface ActivateIngressCommand {
 export interface IngressRouter {
   activate(command: ActivateIngressCommand): Promise<{ readonly route: IngressRoute; readonly previous?: IngressRoute }>;
   current(companyId: string, applicationId: string): Promise<IngressRoute | undefined>;
+  list(): Promise<readonly IngressRoute[]>;
 }

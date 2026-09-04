@@ -37,6 +37,7 @@ import { InMemoryReleaseRepository } from "./in-memory-release-repository.js";
 import { PostgresReleaseRepository } from "./postgres-release-repository.js";
 import { DockerTestDeploymentEngine } from "./docker-test-deployment-engine.js";
 import { FilesystemIngressRouter } from "./filesystem-ingress-router.js";
+import { TraefikFileReconciler, UnavailableIngressReconciler, type IngressReconciler } from "./traefik-file-reconciler.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -46,6 +47,7 @@ export interface ApplicationRuntime {
   readonly buildWorker: BuildJobWorker;
   readonly releases: ReleaseService;
   readonly releaseWorker: ReleaseWorker;
+  readonly ingressReconciler: IngressReconciler;
   readonly identity: IdentityService;
 }
 
@@ -109,6 +111,8 @@ export async function createApplicationRuntime(
     ? new DockerTestDeploymentEngine({ image: process.env.RELEASE_RUNTIME_IMAGE!, network: process.env.RELEASE_NETWORK!, deploymentRoot: process.env.RELEASE_DEPLOYMENT_ROOT!, containerPort: Number(process.env.RELEASE_CONTAINER_PORT ?? 3000), healthPath: process.env.RELEASE_HEALTH_PATH ?? "/health", ...(process.env.RELEASE_COMMAND ? { command: process.env.RELEASE_COMMAND.split(" ").filter(Boolean) } : {}) }, artifactStore!)
     : new UnavailableDeploymentEngine();
   const ingress = process.env.INGRESS_ROUTE_ROOT ? new FilesystemIngressRouter(process.env.INGRESS_ROUTE_ROOT) : undefined;
+  if (process.env.INGRESS_RECONCILER_ENABLED === "true" && (!ingress || !process.env.TRAEFIK_DYNAMIC_CONFIG_PATH)) throw new Error("Ingress reconciler requires route storage and a Traefik dynamic configuration path");
+  const ingressReconciler = ingress && process.env.TRAEFIK_DYNAMIC_CONFIG_PATH ? new TraefikFileReconciler(ingress, process.env.TRAEFIK_DYNAMIC_CONFIG_PATH, process.env.TRAEFIK_ENTRYPOINT ?? "websecure") : new UnavailableIngressReconciler();
   if (!connectionString) {
     const audit = new InMemoryAuditRepository();
     const assessments = new InMemoryAssessmentRepository(audit);
@@ -133,6 +137,7 @@ export async function createApplicationRuntime(
       buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `local-build-${process.pid}`, builds, buildEngine, logger),
       releases: new ReleaseService(releases, builds),
       releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `local-release-${process.pid}`, releases, deploymentEngine, ingress),
+      ingressReconciler,
       identity: new IdentityService(
         verifier,
         new InMemoryAuthorizationRepository(
@@ -168,6 +173,7 @@ export async function createApplicationRuntime(
     buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `build-worker-${process.pid}`, builds, buildEngine, logger),
     releases: new ReleaseService(releases, builds),
     releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `release-worker-${process.pid}`, releases, deploymentEngine, ingress),
+    ingressReconciler,
     identity: new IdentityService(
       verifier,
       new PostgresAuthorizationRepository(db),

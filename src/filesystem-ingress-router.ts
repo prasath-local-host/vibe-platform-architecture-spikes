@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ActivateIngressCommand, IngressRoute, IngressRouter } from "./ingress-router.js";
 
@@ -46,5 +46,19 @@ export class FilesystemIngressRouter implements IngressRouter {
       if (route.companyId !== companyId || route.applicationId !== applicationId) throw new Error("Ingress route identity mismatch");
       return route;
     } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
+  }
+
+  async list(): Promise<readonly IngressRoute[]> {
+    try {
+      const routes: IngressRoute[] = [];
+      for (const entry of (await readdir(this.root, { withFileTypes: true })).sort((left, right) => left.name.localeCompare(right.name))) {
+        if (!entry.isFile() || !/^[0-9a-f]{64}\.json$/.test(entry.name)) continue;
+        const route = JSON.parse(await readFile(join(this.root, entry.name), "utf8")) as IngressRoute;
+        validate(route);
+        if (`${routeKey(route.companyId, route.applicationId)}.json` !== entry.name) throw new Error("Ingress route filename does not match its identity");
+        routes.push(route);
+      }
+      return routes;
+    } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error; }
   }
 }
