@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, normalize, relative } from "node:path";
 import { promisify } from "node:util";
-import type { BuildExecutionRequest, BuildExecutionResult, BuildExecutor } from "./build-service.js";
+import { verifySourceArtifact, type BuildExecutionRequest, type BuildExecutionResult, type BuildExecutor } from "./build-service.js";
 
 const executeFile = promisify(execFile);
 
@@ -75,19 +75,20 @@ export class DockerBuildExecutor implements BuildExecutor {
   }
 
   async execute(request: BuildExecutionRequest): Promise<BuildExecutionResult> {
+    verifySourceArtifact(request.artifact);
     const workspace = await mkdtemp(join(tmpdir(), "vcp-build-"));
     const started = performance.now();
     try {
       let sourceBytes = 0;
       const maximumSourceBytes = this.config.maximumSourceBytes ?? 10 * 1024 * 1024;
-      for (const file of request.files) {
+      for (const file of request.artifact.files) {
         const safePath = safeRelativePath(file.path);
-        sourceBytes += Buffer.byteLength(file.content);
+        sourceBytes += typeof file.content === "string" ? Buffer.byteLength(file.content) : file.content.byteLength;
         if (sourceBytes > maximumSourceBytes) throw new Error("Build source exceeds the configured byte limit");
         const destination = join(workspace, safePath);
         if (relative(workspace, destination).startsWith("..")) throw new Error("Build source escaped its workspace");
         await mkdir(dirname(destination), { recursive: true });
-        await writeFile(destination, file.content, { encoding: "utf8", flag: "wx" });
+        await writeFile(destination, file.content, { flag: "wx" });
       }
 
       const command = request.packageManager === "npm"

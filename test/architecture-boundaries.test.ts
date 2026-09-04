@@ -20,7 +20,7 @@ describe("architecture module boundaries", () => {
     expect(innerModules).toHaveLength(6);
     expect(
       innerModules.flatMap((module) => module.externalDependencies),
-    ).toEqual(["node:crypto", "node:crypto", "node:async_hooks"]);
+    ).toEqual(["node:crypto", "node:crypto", "node:crypto", "node:async_hooks"]);
   });
 
   it("keeps the committed dependency report synchronized", async () => {
