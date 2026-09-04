@@ -32,9 +32,10 @@ import { GitHubSourceArtifactRepository } from "./git-source-artifact-repository
 import { DockerBuildPipeline } from "./docker-build-pipeline.js";
 import { SourceBuildJobEngine, UnavailableBuildJobEngine } from "./build-job-engine.js";
 import { FilesystemArtifactStore } from "./filesystem-artifact-store.js";
-import { ReleaseService } from "./release-service.js";
+import { ReleaseService, ReleaseWorker, UnavailableDeploymentEngine } from "./release-service.js";
 import { InMemoryReleaseRepository } from "./in-memory-release-repository.js";
 import { PostgresReleaseRepository } from "./postgres-release-repository.js";
+import { DockerTestDeploymentEngine } from "./docker-test-deployment-engine.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -43,6 +44,7 @@ export interface ApplicationRuntime {
   readonly builds: BuildJobService;
   readonly buildWorker: BuildJobWorker;
   readonly releases: ReleaseService;
+  readonly releaseWorker: ReleaseWorker;
   readonly identity: IdentityService;
 }
 
@@ -77,6 +79,7 @@ export async function createApplicationRuntime(
     process.env.BUILD_EGRESS_NETWORK &&
     process.env.BUILD_ARTIFACT_ROOT,
   );
+  const artifactStore = process.env.BUILD_ARTIFACT_ROOT ? new FilesystemArtifactStore(process.env.BUILD_ARTIFACT_ROOT) : undefined;
   if (process.env.BUILD_WORKER_ENABLED === "true" && !buildConfigurationComplete) {
     throw new Error("Build worker requires GitHub source, a digest-pinned pipeline image, an egress network, and artifact storage");
   }
@@ -95,10 +98,15 @@ export async function createApplicationRuntime(
           allowedRegistryOrigins: (process.env.BUILD_ALLOWED_REGISTRY_ORIGINS ?? "https://registry.npmjs.org").split(",").map((value) => value.trim()),
           outputDirectories: (process.env.BUILD_OUTPUT_DIRECTORIES ?? "dist").split(",").map((value) => value.trim()),
         }),
-        new FilesystemArtifactStore(process.env.BUILD_ARTIFACT_ROOT!),
+        artifactStore!,
         Number(process.env.BUILD_ARTIFACT_RETENTION_DAYS ?? 30),
       )
     : new UnavailableBuildJobEngine();
+  const releaseConfigurationComplete = Boolean(artifactStore && process.env.RELEASE_RUNTIME_IMAGE && process.env.RELEASE_NETWORK && process.env.RELEASE_DEPLOYMENT_ROOT);
+  if (process.env.RELEASE_WORKER_ENABLED === "true" && !releaseConfigurationComplete) throw new Error("Release worker requires artifact storage, a digest-pinned runtime image, a deployment network, and a deployment root");
+  const deploymentEngine = releaseConfigurationComplete
+    ? new DockerTestDeploymentEngine({ image: process.env.RELEASE_RUNTIME_IMAGE!, network: process.env.RELEASE_NETWORK!, deploymentRoot: process.env.RELEASE_DEPLOYMENT_ROOT!, containerPort: Number(process.env.RELEASE_CONTAINER_PORT ?? 3000), healthPath: process.env.RELEASE_HEALTH_PATH ?? "/health", ...(process.env.RELEASE_COMMAND ? { command: process.env.RELEASE_COMMAND.split(" ").filter(Boolean) } : {}) }, artifactStore!)
+    : new UnavailableDeploymentEngine();
   if (!connectionString) {
     const audit = new InMemoryAuditRepository();
     const assessments = new InMemoryAssessmentRepository(audit);
@@ -122,6 +130,7 @@ export async function createApplicationRuntime(
       builds: new BuildJobService(builds, applications, logger),
       buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `local-build-${process.pid}`, builds, buildEngine, logger),
       releases: new ReleaseService(releases, builds),
+      releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `local-release-${process.pid}`, releases, deploymentEngine),
       identity: new IdentityService(
         verifier,
         new InMemoryAuthorizationRepository(
@@ -156,6 +165,7 @@ export async function createApplicationRuntime(
     builds: new BuildJobService(builds, applications, logger),
     buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `build-worker-${process.pid}`, builds, buildEngine, logger),
     releases: new ReleaseService(releases, builds),
+    releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `release-worker-${process.pid}`, releases, deploymentEngine),
     identity: new IdentityService(
       verifier,
       new PostgresAuthorizationRepository(db),

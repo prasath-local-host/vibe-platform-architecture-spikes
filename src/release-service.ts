@@ -17,6 +17,11 @@ export interface DeploymentEngine {
   verifyHealth(deploymentUrl: string): Promise<boolean>;
 }
 
+export class UnavailableDeploymentEngine implements DeploymentEngine {
+  async deploy(): Promise<{ readonly deploymentUrl: string }> { throw new Error("Test deployment is not configured"); }
+  async verifyHealth(): Promise<boolean> { return false; }
+}
+
 export interface CreateReleaseCommand {
   readonly actor: Actor;
   readonly companyId: string;

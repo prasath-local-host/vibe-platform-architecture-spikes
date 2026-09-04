@@ -50,6 +50,7 @@ describe("documented route authorization contract", () => {
 
   beforeAll(async () => {
     process.env.ASSESSMENT_WORKER_ENABLED = "false";
+    process.env.RELEASE_WORKER_ENABLED = "false";
     const audit = new InMemoryAuditRepository();
     const identity = new IdentityService(
       new SpikeAccessTokenVerifier(true),

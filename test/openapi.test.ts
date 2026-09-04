@@ -11,6 +11,7 @@ describe("OpenAPI generation", () => {
 
   beforeAll(async () => {
     process.env.ASSESSMENT_WORKER_ENABLED = "false";
+    process.env.RELEASE_WORKER_ENABLED = "false";
     app = await NestFactory.create<NestFastifyApplication>(
       AppModule,
       new FastifyAdapter(),

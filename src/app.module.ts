@@ -8,7 +8,8 @@ import { BuildController } from "./build-controller.js";
 import { BuildJobService, BuildJobWorker } from "./build-job-service.js";
 import { BuildWorkerHost } from "./build-worker-host.js";
 import { ReleaseController } from "./release-controller.js";
-import { ReleaseService } from "./release-service.js";
+import { ReleaseService, ReleaseWorker } from "./release-service.js";
+import { ReleaseWorkerHost } from "./release-worker-host.js";
 import { IdentityService } from "./identity.js";
 import {
   createApplicationRuntime,
@@ -59,8 +60,14 @@ const APPLICATION_RUNTIME = Symbol("APPLICATION_RUNTIME");
       inject: [APPLICATION_RUNTIME],
       useFactory: (runtime: ApplicationRuntime) => runtime.releases,
     },
+    {
+      provide: ReleaseWorker,
+      inject: [APPLICATION_RUNTIME],
+      useFactory: (runtime: ApplicationRuntime) => runtime.releaseWorker,
+    },
     AssessmentWorkerHost,
     BuildWorkerHost,
+    ReleaseWorkerHost,
   ],
 })
 export class AppModule {}
