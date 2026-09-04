@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 31 |
-| Local dependency edges | 72 |
+| Classified production modules | 34 |
+| Local dependency edges | 81 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -32,8 +32,8 @@ Dependencies must point inward:
 | Layer | Count | Modules |
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
-| application | 7 | `application-service.ts`, `assessment-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
-| adapter | 19 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| application | 8 | `application-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
+| adapter | 21 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -59,6 +59,9 @@ Dependencies must point inward:
 | `assessment-worker-host.ts` | adapter | `assessment-service.ts` | application |
 | `assessment-worker-host.ts` | adapter | `observability.ts` | application |
 | `browser-session.ts` | adapter | `oidc-access-token-verifier.ts` | adapter |
+| `build-job-service.ts` | application | `application-service.ts` | application |
+| `build-job-service.ts` | application | `domain.ts` | domain |
+| `build-job-service.ts` | application | `observability.ts` | application |
 | `build-pipeline.ts` | application | `build-service.ts` | application |
 | `build-pipeline.ts` | application | `dependency-restoration.ts` | application |
 | `controller.ts` | adapter | `application-service.ts` | application |
@@ -79,6 +82,9 @@ Dependencies must point inward:
 | `in-memory-assessment-repository.ts` | adapter | `assessment-service.ts` | application |
 | `in-memory-assessment-repository.ts` | adapter | `domain.ts` | domain |
 | `in-memory-assessment-repository.ts` | adapter | `in-memory-repositories.ts` | adapter |
+| `in-memory-build-record-repository.ts` | adapter | `build-job-service.ts` | application |
+| `in-memory-build-record-repository.ts` | adapter | `domain.ts` | domain |
+| `in-memory-build-record-repository.ts` | adapter | `in-memory-repositories.ts` | adapter |
 | `in-memory-repositories.ts` | adapter | `application-service.ts` | application |
 | `in-memory-repositories.ts` | adapter | `domain.ts` | domain |
 | `main.ts` | composition | `app.module.ts` | composition |
@@ -109,6 +115,9 @@ Dependencies must point inward:
 | `postgres-assessment-repository.ts` | adapter | `domain.ts` | domain |
 | `postgres-authorization-repository.ts` | adapter | `database.ts` | adapter |
 | `postgres-authorization-repository.ts` | adapter | `identity.ts` | application |
+| `postgres-build-record-repository.ts` | adapter | `build-job-service.ts` | application |
+| `postgres-build-record-repository.ts` | adapter | `database.ts` | adapter |
+| `postgres-build-record-repository.ts` | adapter | `domain.ts` | domain |
 | `postgres-repositories.ts` | adapter | `application-service.ts` | application |
 | `postgres-repositories.ts` | adapter | `database.ts` | adapter |
 | `postgres-repositories.ts` | adapter | `domain.ts` | domain |

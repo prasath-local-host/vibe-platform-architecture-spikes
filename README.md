@@ -45,6 +45,8 @@ The full-source GitHub adapter acquires only an exact 40-character commit SHA, v
 
 The combined build-pipeline adapter now proves the restoration-to-build handoff in one disposable workspace. It verifies the source artifact before restoration, requires a matching lockfile, restores with lifecycle scripts disabled through the controlled-egress network, re-hashes every immutable source file, and only then runs build or test with `--network none`. A restore failure or source mutation prevents build execution, and the workspace is always removed. This remains an internal architecture boundary; durable build records and API/worker orchestration are the next slice.
 
+Build execution now has a durable asynchronous record boundary. Build requests retain the company, registered application repository, immutable source revision, package manager, requested script, idempotency and correlation keys. PostgreSQL claims work with `FOR UPDATE SKIP LOCKED`, recovers locks stale for five minutes, and records terminal state plus audit evidence transactionally. The worker/service contract is implemented and tenant-isolation tested; HTTP routes and runtime composition with source acquisition and the build pipeline remain the next slice.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

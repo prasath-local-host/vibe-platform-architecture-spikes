@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Kysely } from "kysely";
 import { ApplicationService } from "../src/application-service.js";
 import { AssessmentService, AssessmentWorker } from "../src/assessment-service.js";
+import { BuildJobService, BuildJobWorker } from "../src/build-job-service.js";
 import { createDatabase, type Database } from "../src/database.js";
 import type { Actor } from "../src/domain.js";
 import { migrateToLatest } from "../src/migrations.js";
@@ -11,6 +12,7 @@ import {
 } from "../src/postgres-repositories.js";
 import { PostgresAuthorizationRepository } from "../src/postgres-authorization-repository.js";
 import { PostgresAssessmentRepository } from "../src/postgres-assessment-repository.js";
+import { PostgresBuildRecordRepository } from "../src/postgres-build-record-repository.js";
 import { ManifestAssessmentEngine } from "../src/manifest-assessment-engine.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -27,6 +29,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
     db = createDatabase(databaseUrl!);
     await migrateToLatest(db);
     await db.deleteFrom("audit_events").execute();
+    await db.deleteFrom("builds").execute();
     await db.deleteFrom("assessments").execute();
     await db.deleteFrom("applications").execute();
     await db.deleteFrom("platform_roles").execute();
@@ -219,6 +222,34 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
     expect(events.filter((event) => event.entityId === submitted.id)).toMatchObject([
       { action: "assessment.queued", correlationId: "postgres-assessment-correlation" },
       { action: "assessment.completed", correlationId: "postgres-assessment-correlation" },
+    ]);
+  });
+
+  it("persists idempotent build jobs and completes one concurrent claim", async () => {
+    const application = await service().register({
+      actor: companyA, companyId: "postgres-company-a", name: "Built application",
+      repositoryUrl: "https://github.com/example/built", idempotencyKey: "built-application",
+      correlationId: "built-application-correlation",
+    });
+    const repository = new PostgresBuildRecordRepository(db);
+    const builds = new BuildJobService(repository, new PostgresApplicationRepository(db));
+    const command = {
+      actor: companyA, companyId: "postgres-company-a", applicationId: application.id,
+      sourceRevision: "f".repeat(40), packageManager: "npm" as const, script: "build" as const,
+      idempotencyKey: "postgres-build", correlationId: "postgres-build-correlation",
+    };
+    const [first, retry] = await Promise.all([builds.submit(command), builds.submit(command)]);
+    expect(retry.id).toBe(first.id);
+    const engine = { async execute() { return { artifactDigest: `sha256:${"a".repeat(64)}`, restorationStatus: "succeeded" as const, buildStatus: "succeeded" as const }; } };
+    const outcomes = await Promise.all([
+      new BuildJobWorker("build-worker-one", repository, engine).tick(),
+      new BuildJobWorker("build-worker-two", repository, engine).tick(),
+    ]);
+    expect(outcomes.sort()).toEqual([false, true]);
+    expect(await builds.get(companyA, "postgres-company-a", first.id)).toMatchObject({ status: "completed", attempts: 1, result: { buildStatus: "succeeded" } });
+    const events = await new PostgresAuditRepository(db).listByCompany("postgres-company-a");
+    expect(events.filter((event) => event.entityId === first.id)).toMatchObject([
+      { action: "build.queued" }, { action: "build.completed" },
     ]);
   });
 });

@@ -22,7 +22,7 @@ export interface AuditEvent {
   readonly actorRole: Role;
   readonly companyId: string;
   readonly action: string;
-  readonly entityType: "application" | "assessment";
+  readonly entityType: "application" | "assessment" | "build";
   readonly entityId: string;
   readonly correlationId: string;
 }
@@ -44,6 +44,31 @@ export interface Assessment {
     readonly findings: readonly string[];
     readonly manifests: readonly string[];
     readonly detectedStack: readonly string[];
+  };
+  readonly error?: string;
+  readonly createdAt: string;
+  readonly startedAt?: string;
+  readonly completedAt?: string;
+}
+
+export type BuildStatus = "queued" | "running" | "completed" | "failed";
+
+export interface BuildRecord {
+  readonly id: string;
+  readonly companyId: string;
+  readonly applicationId: string;
+  readonly repositoryUrl: string;
+  readonly sourceRevision: string;
+  readonly packageManager: "npm" | "pnpm" | "yarn";
+  readonly script: "build" | "test";
+  readonly idempotencyKey: string;
+  readonly correlationId: string;
+  readonly status: BuildStatus;
+  readonly attempts: number;
+  readonly result?: {
+    readonly artifactDigest: string;
+    readonly restorationStatus: "succeeded";
+    readonly buildStatus: "succeeded" | "failed";
   };
   readonly error?: string;
   readonly createdAt: string;

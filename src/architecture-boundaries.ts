@@ -37,6 +37,7 @@ const layerRank: Record<ArchitectureLayer, number> = {
 const applicationModules = new Set([
   "build-service.ts",
   "build-pipeline.ts",
+  "build-job-service.ts",
   "dependency-restoration.ts",
   "application-service.ts",
   "assessment-service.ts",

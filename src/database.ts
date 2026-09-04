@@ -41,9 +41,29 @@ export interface AuditEventTable {
   actor_role: "operator" | "company-user";
   company_id: string;
   action: string;
-  entity_type: "application" | "assessment";
+  entity_type: "application" | "assessment" | "build";
   entity_id: string;
   correlation_id: string;
+}
+
+export interface BuildRecordTable {
+  id: string;
+  company_id: string;
+  application_id: string;
+  repository_url: string;
+  source_revision: string;
+  package_manager: "npm" | "pnpm" | "yarn";
+  script: "build" | "test";
+  idempotency_key: string;
+  correlation_id: string;
+  status: "queued" | "running" | "completed" | "failed";
+  attempts: number;
+  result: unknown | null;
+  error: string | null;
+  locked_by: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
 }
 
 export interface AssessmentTable {
@@ -71,6 +91,7 @@ export interface Database {
   applications: ApplicationTable;
   audit_events: AuditEventTable;
   assessments: AssessmentTable;
+  builds: BuildRecordTable;
 }
 
 export function createDatabase(
