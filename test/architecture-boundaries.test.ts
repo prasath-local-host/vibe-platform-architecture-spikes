@@ -17,7 +17,7 @@ describe("architecture module boundaries", () => {
     const innerModules = analysis.modules.filter(
       (module) => module.layer === "domain" || module.layer === "application",
     );
-    expect(innerModules).toHaveLength(7);
+    expect(innerModules).toHaveLength(8);
     expect(
       innerModules.flatMap((module) => module.externalDependencies),
     ).toEqual(["node:crypto", "node:crypto", "node:crypto", "node:async_hooks"]);

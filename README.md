@@ -43,6 +43,8 @@ Dependency restoration is a separate adapter and security phase. It requires the
 
 The full-source GitHub adapter acquires only an exact 40-character commit SHA, verifies the resulting revision, rejects Git submodules and filesystem symbolic links, and enforces per-file, aggregate-byte and file-count limits before producing the integrity-protected binary-safe artifact. Git metadata and credentials are excluded, and the temporary checkout is always deleted. The adapter is not yet composed into an externally callable workflow; the verified restoration-to-build workspace handoff remains the next boundary.
 
+The combined build-pipeline adapter now proves the restoration-to-build handoff in one disposable workspace. It verifies the source artifact before restoration, requires a matching lockfile, restores with lifecycle scripts disabled through the controlled-egress network, re-hashes every immutable source file, and only then runs build or test with `--network none`. A restore failure or source mutation prevents build execution, and the workspace is always removed. This remains an internal architecture boundary; durable build records and API/worker orchestration are the next slice.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

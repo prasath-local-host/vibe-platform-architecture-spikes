@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 29 |
-| Local dependency edges | 68 |
+| Classified production modules | 31 |
+| Local dependency edges | 72 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -32,8 +32,8 @@ Dependencies must point inward:
 | Layer | Count | Modules |
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
-| application | 6 | `application-service.ts`, `assessment-service.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
-| adapter | 18 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-dependency-restorer.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| application | 7 | `application-service.ts`, `assessment-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
+| adapter | 19 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -59,6 +59,8 @@ Dependencies must point inward:
 | `assessment-worker-host.ts` | adapter | `assessment-service.ts` | application |
 | `assessment-worker-host.ts` | adapter | `observability.ts` | application |
 | `browser-session.ts` | adapter | `oidc-access-token-verifier.ts` | adapter |
+| `build-pipeline.ts` | application | `build-service.ts` | application |
+| `build-pipeline.ts` | application | `dependency-restoration.ts` | application |
 | `controller.ts` | adapter | `application-service.ts` | application |
 | `controller.ts` | adapter | `domain.ts` | domain |
 | `controller.ts` | adapter | `identity.ts` | application |
@@ -66,6 +68,8 @@ Dependencies must point inward:
 | `database.ts` | adapter | `observability.ts` | application |
 | `dependency-restoration.ts` | application | `build-service.ts` | application |
 | `docker-build-executor.ts` | adapter | `build-service.ts` | application |
+| `docker-build-pipeline.ts` | adapter | `build-pipeline.ts` | application |
+| `docker-build-pipeline.ts` | adapter | `build-service.ts` | application |
 | `docker-dependency-restorer.ts` | adapter | `build-service.ts` | application |
 | `docker-dependency-restorer.ts` | adapter | `dependency-restoration.ts` | application |
 | `git-source-artifact-repository.ts` | adapter | `build-service.ts` | application |
