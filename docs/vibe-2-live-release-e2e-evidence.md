@@ -2,9 +2,11 @@
 
 ## Status
 
-Pending infrastructure readiness as of 2026-09-04.
+Passed on 2026-09-04.
 
-The committed E2E harness is ready, but the live container execution was not claimed as passing. Docker Desktop was initially stopped. Its user-level application was launched successfully, and WSL2 reports Ubuntu as the default distribution with version 2. The Docker engine did not become responsive: both `docker version` and `docker desktop status` exceeded bounded 30-second readiness windows. Starting `com.docker.service` directly was denied by Windows service permissions. A second invocation was made explicitly with `D:\` as the working directory; the CLI resolved correctly to `C:\Program Files\Docker\Docker\resources\bin\docker.exe`, selected the `desktop-linux` context, and again timed out waiting for the server. The working drive is therefore not the cause.
+Docker Desktop became responsive with server version 29.7.2. The live harness completed successfully using `node@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf` on the `desktop-linux` context from the D-drive repository. Vitest reported one passed test with no skip; the scenario itself completed in 8.538 seconds. Post-run checks found no remaining `vcp-test-*` containers and no remaining `vcp-e2e-*` network.
+
+Earlier readiness attempts timed out while Docker Desktop was starting, including an explicit invocation from `D:\`. This confirmed that the repository drive was not the cause; the same command succeeded once the Linux engine was ready.
 
 ## Executable evidence
 
@@ -28,7 +30,7 @@ The platform-owned fixture verifies this sequence without customer source:
 Start Docker Desktop and wait until `docker version` returns its server version. Then use a locally available digest-pinned Node image:
 
 ```powershell
-$env:VCP_E2E_RUNTIME_IMAGE='node@sha256:<64-hex-digest>'
+$env:VCP_E2E_RUNTIME_IMAGE='node@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf'
 pnpm test:e2e-release
 ```
 
@@ -41,4 +43,5 @@ Acceptance requires one passed test with no skipped test, no remaining `vcp-test
 - Architecture dependency check: passed
 - PostgreSQL persistence suite: passed
 - Non-live automated suite: passed
-- Live Docker deployment and rollback: pending Docker engine readiness
+- Live Docker deployment and rollback: passed (1 test, 8.538-second scenario)
+- E2E container and network cleanup: passed
