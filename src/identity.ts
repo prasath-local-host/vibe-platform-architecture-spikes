@@ -17,7 +17,7 @@ export interface AuthorizationRepository {
   hasCompanyAccess(subject: string, companyId: string): Promise<boolean>;
 }
 
-export type SensitiveAction = "application.register" | "company.access.change";
+export type SensitiveAction = "application.register" | "company.access.change" | "build.submit";
 
 export interface AuthenticationRequirement {
   readonly sensitiveAction: SensitiveAction;

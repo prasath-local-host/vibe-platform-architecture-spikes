@@ -425,6 +425,277 @@
           "assessments"
         ]
       }
+    },
+    "/companies/{companyId}/applications/{applicationId}/builds": {
+      "post": {
+        "operationId": "BuildController_submit",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "description": "VCP-controlled company identifier",
+            "schema": {}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitBuildRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued build, or original record for an idempotent retry.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildRecordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request body failed schema validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationIssueResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer token is missing, invalid, or lacks required step-up assurance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verified subject has no active access to the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Application does not exist in the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The configured identity verifier cannot establish trust.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Queue an immutable asynchronous build or test",
+        "tags": [
+          "builds"
+        ]
+      },
+      "get": {
+        "operationId": "BuildController_list",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "description": "VCP-controlled company identifier",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BuildRecordResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer token is missing, invalid, or lacks required step-up assurance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verified subject has no active access to the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The configured identity verifier cannot establish trust.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List builds for an application",
+        "tags": [
+          "builds"
+        ]
+      }
+    },
+    "/companies/{companyId}/applications/{applicationId}/builds/{buildId}": {
+      "get": {
+        "operationId": "BuildController_get",
+        "parameters": [
+          {
+            "name": "buildId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "description": "VCP-controlled company identifier",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuildRecordResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer token is missing, invalid, or lacks required step-up assurance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verified subject has no active access to the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Build record does not exist in the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The configured identity verifier cannot establish trust.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get asynchronous build status",
+        "tags": [
+          "builds"
+        ]
+      }
     }
   },
   "info": {
@@ -713,6 +984,160 @@
           "applicationId",
           "repositoryUrl",
           "sourceRevision",
+          "idempotencyKey",
+          "correlationId",
+          "status",
+          "attempts",
+          "createdAt"
+        ]
+      },
+      "SubmitBuildRequest": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 100,
+            "example": "build-main-commit-v1"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{40}$",
+            "description": "Immutable Git commit SHA."
+          },
+          "packageManager": {
+            "type": "string",
+            "enum": [
+              "npm",
+              "pnpm",
+              "yarn"
+            ]
+          },
+          "script": {
+            "type": "string",
+            "enum": [
+              "build",
+              "test"
+            ]
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "sourceRevision",
+          "packageManager",
+          "script"
+        ]
+      },
+      "BuildResultResponse": {
+        "type": "object",
+        "properties": {
+          "artifactDigest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "restorationStatus": {
+            "type": "string",
+            "enum": [
+              "succeeded"
+            ]
+          },
+          "buildStatus": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed"
+            ]
+          }
+        },
+        "required": [
+          "artifactDigest",
+          "restorationStatus",
+          "buildStatus"
+        ]
+      },
+      "BuildRecordResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "repositoryUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "packageManager": {
+            "type": "string",
+            "enum": [
+              "npm",
+              "pnpm",
+              "yarn"
+            ]
+          },
+          "script": {
+            "type": "string",
+            "enum": [
+              "build",
+              "test"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "attempts": {
+            "type": "number",
+            "minimum": 0
+          },
+          "result": {
+            "$ref": "#/components/schemas/BuildResultResponse"
+          },
+          "error": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "applicationId",
+          "repositoryUrl",
+          "sourceRevision",
+          "packageManager",
+          "script",
           "idempotencyKey",
           "correlationId",
           "status",

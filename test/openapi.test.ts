@@ -29,6 +29,8 @@ describe("OpenAPI generation", () => {
       "/companies/{companyId}/applications",
       "/companies/{companyId}/applications/{applicationId}/assessments",
       "/companies/{companyId}/applications/{applicationId}/assessments/{assessmentId}",
+      "/companies/{companyId}/applications/{applicationId}/builds",
+      "/companies/{companyId}/applications/{applicationId}/builds/{buildId}",
     ];
     expect(Object.keys(document.paths)).toEqual(paths);
     for (const path of Object.values(document.paths)) {
@@ -47,11 +49,16 @@ describe("OpenAPI generation", () => {
     const applicationPost = document.paths["/companies/{companyId}/applications"]?.post;
     const assessmentPost = document.paths["/companies/{companyId}/applications/{applicationId}/assessments"]?.post;
     const assessmentGet = document.paths["/companies/{companyId}/applications/{applicationId}/assessments/{assessmentId}"]?.get;
+    const buildPost = document.paths["/companies/{companyId}/applications/{applicationId}/builds"]?.post;
+    const buildGet = document.paths["/companies/{companyId}/applications/{applicationId}/builds/{buildId}"]?.get;
 
     expect(applicationPost?.responses["400"]).toBeDefined();
     expect(assessmentPost?.responses["400"]).toBeDefined();
     expect(assessmentPost?.responses["404"]).toBeDefined();
     expect(assessmentGet?.responses["404"]).toBeDefined();
+    expect(buildPost?.responses["400"]).toBeDefined();
+    expect(buildPost?.responses["404"]).toBeDefined();
+    expect(buildGet?.responses["404"]).toBeDefined();
     expect(document.components?.schemas?.HttpErrorResponse).toBeDefined();
     expect(document.components?.schemas?.ValidationIssueResponse).toBeDefined();
   });
@@ -66,10 +73,13 @@ describe("OpenAPI generation", () => {
   it("describes request bodies and asynchronous acceptance", () => {
     const applicationPost = document.paths["/companies/{companyId}/applications"]?.post;
     const assessmentPost = document.paths["/companies/{companyId}/applications/{applicationId}/assessments"]?.post;
+    const buildPost = document.paths["/companies/{companyId}/applications/{applicationId}/builds"]?.post;
     expect(applicationPost?.requestBody).toBeDefined();
     expect(applicationPost?.responses["201"]).toBeDefined();
     expect(assessmentPost?.requestBody).toBeDefined();
     expect(assessmentPost?.responses["202"]).toBeDefined();
+    expect(buildPost?.requestBody).toBeDefined();
+    expect(buildPost?.responses["202"]).toBeDefined();
   });
 
   it("documents schema constraints and conditional assessment fields", () => {

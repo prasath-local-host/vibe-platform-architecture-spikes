@@ -4,6 +4,9 @@ import { AssessmentController } from "./assessment-controller.js";
 import { ApplicationService } from "./application-service.js";
 import { AssessmentService, AssessmentWorker } from "./assessment-service.js";
 import { AssessmentWorkerHost } from "./assessment-worker-host.js";
+import { BuildController } from "./build-controller.js";
+import { BuildJobService, BuildJobWorker } from "./build-job-service.js";
+import { BuildWorkerHost } from "./build-worker-host.js";
 import { IdentityService } from "./identity.js";
 import {
   createApplicationRuntime,
@@ -13,7 +16,7 @@ import {
 const APPLICATION_RUNTIME = Symbol("APPLICATION_RUNTIME");
 
 @Module({
-  controllers: [AppController, AssessmentController],
+  controllers: [AppController, AssessmentController, BuildController],
   providers: [
     {
       provide: APPLICATION_RUNTIME,
@@ -39,7 +42,18 @@ const APPLICATION_RUNTIME = Symbol("APPLICATION_RUNTIME");
       inject: [APPLICATION_RUNTIME],
       useFactory: (runtime: ApplicationRuntime) => runtime.assessmentWorker,
     },
+    {
+      provide: BuildJobService,
+      inject: [APPLICATION_RUNTIME],
+      useFactory: (runtime: ApplicationRuntime) => runtime.builds,
+    },
+    {
+      provide: BuildJobWorker,
+      inject: [APPLICATION_RUNTIME],
+      useFactory: (runtime: ApplicationRuntime) => runtime.buildWorker,
+    },
     AssessmentWorkerHost,
+    BuildWorkerHost,
   ],
 })
 export class AppModule {}

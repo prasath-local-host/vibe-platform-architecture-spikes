@@ -9,6 +9,7 @@ import { AppModule } from "./app.module.js";
 import { createOpenApiDocument } from "./openapi.js";
 
 process.env.ASSESSMENT_WORKER_ENABLED = "false";
+process.env.BUILD_WORKER_ENABLED = "false";
 
 const app = await NestFactory.create<NestFastifyApplication>(
   AppModule,

@@ -9,6 +9,8 @@ import { AppModule } from "../src/app.module.js";
 import { ApplicationService } from "../src/application-service.js";
 import { AssessmentController } from "../src/assessment-controller.js";
 import { AssessmentService } from "../src/assessment-service.js";
+import { BuildController } from "../src/build-controller.js";
+import { BuildJobService } from "../src/build-job-service.js";
 import { AppController } from "../src/controller.js";
 import {
   IdentityService,
@@ -16,6 +18,7 @@ import {
   SpikeAccessTokenVerifier,
 } from "../src/identity.js";
 import { InMemoryAssessmentRepository } from "../src/in-memory-assessment-repository.js";
+import { InMemoryBuildRecordRepository } from "../src/in-memory-build-record-repository.js";
 import {
   InMemoryApplicationRepository,
   InMemoryAuditRepository,
@@ -62,8 +65,13 @@ describe("documented route authorization contract", () => {
       new AssessmentService(new InMemoryAssessmentRepository(audit), applicationRepository),
       identity,
     );
+    const builds = new BuildController(
+      new BuildJobService(new InMemoryBuildRecordRepository(audit), applicationRepository),
+      identity,
+    );
     const applicationId = "11111111-1111-4111-8111-111111111111";
     const assessmentId = "22222222-2222-4222-8222-222222222222";
+    const buildId = "33333333-3333-4333-8333-333333333333";
 
     operations = [
       {
@@ -99,6 +107,26 @@ describe("documented route authorization contract", () => {
         method: "get",
         path: "/companies/{companyId}/applications/{applicationId}/assessments/{assessmentId}",
         invoke: (headers) => assessments.get("company-b", assessmentId, headers),
+      },
+      {
+        method: "get",
+        path: "/companies/{companyId}/applications/{applicationId}/builds",
+        invoke: (headers) => builds.list("company-b", applicationId, headers),
+      },
+      {
+        method: "post",
+        path: "/companies/{companyId}/applications/{applicationId}/builds",
+        invoke: (headers) => builds.submit("company-b", applicationId, headers, {
+          idempotencyKey: "authorization-build-probe",
+          sourceRevision: "0123456789abcdef0123456789abcdef01234567",
+          packageManager: "npm",
+          script: "build",
+        }),
+      },
+      {
+        method: "get",
+        path: "/companies/{companyId}/applications/{applicationId}/builds/{buildId}",
+        invoke: (headers) => builds.get("company-b", buildId, headers),
       },
     ];
 

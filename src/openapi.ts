@@ -53,6 +53,45 @@ export class SubmitAssessmentRequest {
   sourceRevision!: string;
 }
 
+export class SubmitBuildRequest {
+  @ApiProperty({ type: String, minLength: 8, maxLength: 100, example: "build-main-commit-v1" })
+  idempotencyKey!: string;
+  @ApiProperty({ type: String, pattern: "^[0-9a-fA-F]{40}$", description: "Immutable Git commit SHA." })
+  sourceRevision!: string;
+  @ApiProperty({ type: String, enum: ["npm", "pnpm", "yarn"] })
+  packageManager!: string;
+  @ApiProperty({ type: String, enum: ["build", "test"] })
+  script!: string;
+}
+
+export class BuildResultResponse {
+  @ApiProperty({ type: String, pattern: "^sha256:[0-9a-f]{64}$" })
+  artifactDigest!: string;
+  @ApiProperty({ type: String, enum: ["succeeded"] })
+  restorationStatus!: string;
+  @ApiProperty({ type: String, enum: ["succeeded", "failed"] })
+  buildStatus!: string;
+}
+
+export class BuildRecordResponse {
+  @ApiProperty({ type: String, format: "uuid" }) id!: string;
+  @ApiProperty({ type: String }) companyId!: string;
+  @ApiProperty({ type: String, format: "uuid" }) applicationId!: string;
+  @ApiProperty({ type: String, format: "uri" }) repositoryUrl!: string;
+  @ApiProperty({ type: String, pattern: "^[0-9a-f]{40}$" }) sourceRevision!: string;
+  @ApiProperty({ type: String, enum: ["npm", "pnpm", "yarn"] }) packageManager!: string;
+  @ApiProperty({ type: String, enum: ["build", "test"] }) script!: string;
+  @ApiProperty({ type: String }) idempotencyKey!: string;
+  @ApiProperty({ type: String }) correlationId!: string;
+  @ApiProperty({ type: String, enum: ["queued", "running", "completed", "failed"] }) status!: string;
+  @ApiProperty({ type: Number, minimum: 0 }) attempts!: number;
+  @ApiPropertyOptional({ type: () => BuildResultResponse }) result?: BuildResultResponse;
+  @ApiPropertyOptional({ type: String }) error?: string;
+  @ApiProperty({ type: String, format: "date-time" }) createdAt!: string;
+  @ApiPropertyOptional({ type: String, format: "date-time" }) startedAt?: string;
+  @ApiPropertyOptional({ type: String, format: "date-time" }) completedAt?: string;
+}
+
 export class HttpErrorResponse {
   @ApiProperty({ type: Number, example: 401, description: "HTTP status code." })
   statusCode!: number;

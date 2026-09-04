@@ -47,6 +47,8 @@ The combined build-pipeline adapter now proves the restoration-to-build handoff 
 
 Build execution now has a durable asynchronous record boundary. Build requests retain the company, registered application repository, immutable source revision, package manager, requested script, idempotency and correlation keys. PostgreSQL claims work with `FOR UPDATE SKIP LOCKED`, recovers locks stale for five minutes, and records terminal state plus audit evidence transactionally. The worker/service contract is implemented and tenant-isolation tested; HTTP routes and runtime composition with source acquisition and the build pipeline remain the next slice.
 
+Authenticated build routes are available at `POST/GET /companies/:companyId/applications/:applicationId/builds` and `GET .../builds/:buildId`; submission requires configured step-up assurance. The build worker is opt-in with `BUILD_WORKER_ENABLED=true` and is runnable only when `GITHUB_SOURCE_ENABLED=true`, `BUILD_PIPELINE_IMAGE` is a digest-pinned image, and `BUILD_EGRESS_NETWORK` names an infrastructure-restricted network. Registry URL/origins and source limits are explicit environment settings. Without complete configuration, queued work is retained and no build worker runs.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:
