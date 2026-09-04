@@ -49,6 +49,8 @@ Build execution now has a durable asynchronous record boundary. Build requests r
 
 Authenticated build routes are available at `POST/GET /companies/:companyId/applications/:applicationId/builds` and `GET .../builds/:buildId`; submission requires configured step-up assurance. The build worker is opt-in with `BUILD_WORKER_ENABLED=true` and is runnable only when `GITHUB_SOURCE_ENABLED=true`, `BUILD_PIPELINE_IMAGE` is a digest-pinned image, and `BUILD_EGRESS_NETWORK` names an infrastructure-restricted network. Registry URL/origins and source limits are explicit environment settings. Without complete configuration, queued work is retained and no build worker runs.
 
+Build outputs now have a content-addressed artifact-store boundary and a bounded filesystem adapter. Artifacts retain tenant, application, build, source revision, SHA-256 digest, byte count, creation time and explicit expiry. Writes are atomic, reads revalidate content integrity and company ownership, binary files round-trip without text conversion, and retention cleanup removes only expired records. This adapter is architecture evidence; production object storage, malware scanning and release records remain subsequent boundaries.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

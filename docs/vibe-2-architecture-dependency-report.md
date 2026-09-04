@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 37 |
-| Local dependency edges | 100 |
+| Classified production modules | 39 |
+| Local dependency edges | 101 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -32,8 +32,8 @@ Dependencies must point inward:
 | Layer | Count | Modules |
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
-| application | 8 | `application-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
-| adapter | 24 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-repositories.ts` |
+| application | 9 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
+| adapter | 25 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `filesystem-artifact-store.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -88,6 +88,7 @@ Dependencies must point inward:
 | `docker-build-pipeline.ts` | adapter | `build-service.ts` | application |
 | `docker-dependency-restorer.ts` | adapter | `build-service.ts` | application |
 | `docker-dependency-restorer.ts` | adapter | `dependency-restoration.ts` | application |
+| `filesystem-artifact-store.ts` | adapter | `artifact-service.ts` | application |
 | `git-source-artifact-repository.ts` | adapter | `build-service.ts` | application |
 | `git-source-artifact-repository.ts` | adapter | `git-source-repository.ts` | adapter |
 | `git-source-repository.ts` | adapter | `assessment-service.ts` | application |
