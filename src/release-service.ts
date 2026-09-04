@@ -9,16 +9,19 @@ export interface ReleaseRepository {
   latestHealthy(companyId: string, applicationId: string): Promise<ReleaseRecord | undefined>;
   claimNext(workerId: string, occurredAt: string): Promise<ReleaseRecord | undefined>;
   healthy(releaseId: string, deploymentUrl: string, occurredAt: string, event: AuditEvent): Promise<void>;
+  rolledBack(releaseId: string, deploymentUrl: string, error: string, occurredAt: string, event: AuditEvent): Promise<void>;
   fail(releaseId: string, error: string, occurredAt: string, event: AuditEvent): Promise<void>;
 }
 
 export interface DeploymentEngine {
   deploy(release: ReleaseRecord): Promise<{ readonly deploymentUrl: string }>;
+  rollback(release: ReleaseRecord, target: ReleaseRecord): Promise<{ readonly deploymentUrl: string }>;
   verifyHealth(deploymentUrl: string): Promise<boolean>;
 }
 
 export class UnavailableDeploymentEngine implements DeploymentEngine {
   async deploy(): Promise<{ readonly deploymentUrl: string }> { throw new Error("Test deployment is not configured"); }
+  async rollback(): Promise<{ readonly deploymentUrl: string }> { throw new Error("Test deployment is not configured"); }
   async verifyHealth(): Promise<boolean> { return false; }
 }
 
@@ -68,8 +71,23 @@ export class ReleaseWorker {
       const now = new Date().toISOString();
       await this.releases.healthy(release.id, deployed.deploymentUrl, now, { ...base, id: randomUUID(), occurredAt: now, action: "release.healthy" });
     } catch (error) {
+      let message = error instanceof Error ? error.message : "Unknown release failure";
+      if (release.rollbackTargetReleaseId) {
+        const target = await this.releases.findById(release.companyId, release.rollbackTargetReleaseId);
+        if (target?.status === "healthy" && target.deploymentUrl) {
+          try {
+            const restored = await this.deployment.rollback(release, target);
+            if (!await this.deployment.verifyHealth(restored.deploymentUrl)) throw new Error("Rollback health verification failed");
+            const rolledBackAt = new Date().toISOString();
+            await this.releases.rolledBack(release.id, restored.deploymentUrl, message, rolledBackAt, { ...base, id: randomUUID(), occurredAt: rolledBackAt, action: "release.rolled_back" });
+            return true;
+          } catch (rollbackError) {
+            message = `${message}; rollback failed: ${rollbackError instanceof Error ? rollbackError.message : "unknown rollback failure"}`;
+          }
+        }
+      }
       const now = new Date().toISOString();
-      await this.releases.fail(release.id, error instanceof Error ? error.message : "Unknown release failure", now, { ...base, id: randomUUID(), occurredAt: now, action: "release.failed" });
+      await this.releases.fail(release.id, message, now, { ...base, id: randomUUID(), occurredAt: now, action: "release.failed" });
     }
     return true;
   }

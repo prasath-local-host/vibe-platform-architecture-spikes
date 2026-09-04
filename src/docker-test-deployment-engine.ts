@@ -72,4 +72,17 @@ export class DockerTestDeploymentEngine implements DeploymentEngine {
     const healthUrl = new URL(this.config.healthPath ?? "/health", deploymentUrl).toString();
     return this.healthFetcher(healthUrl, this.config.timeoutMs ?? 30_000);
   }
+
+  async rollback(release: ReleaseRecord, target: ReleaseRecord): Promise<{ readonly deploymentUrl: string }> {
+    if (!target.deploymentUrl || target.status !== "healthy" || target.companyId !== release.companyId || target.applicationId !== release.applicationId) throw new Error("Rollback target is not a healthy release for this application");
+    const timeout = this.config.timeoutMs ?? 30_000;
+    const targetName = `vcp-test-${target.id}`;
+    await this.runner(["inspect", targetName], timeout);
+    await this.runner(["start", targetName], timeout);
+    try { await this.runner(["rm", "-f", `vcp-test-${release.id}`], timeout); } catch { /* failed candidate may never have started */ }
+    const mapping = await this.runner(["port", targetName, String(this.config.containerPort ?? 3000)], timeout);
+    const match = mapping.match(/127\.0\.0\.1:(\d+)/);
+    if (!match) throw new Error("Rollback target has no loopback deployment port");
+    return { deploymentUrl: `http://127.0.0.1:${match[1]}` };
+  }
 }

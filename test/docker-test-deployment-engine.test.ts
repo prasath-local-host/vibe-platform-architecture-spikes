@@ -32,4 +32,12 @@ describe("Docker test deployment engine", () => {
     const engine = new DockerTestDeploymentEngine({ image, network: "vcp-test", deploymentRoot }, { async get() { return { ...artifact, applicationId: "other" }; }, async put() {}, async deleteExpired() { return 0; } }, async () => "");
     await expect(engine.deploy(release)).rejects.toThrow();
   });
+
+  it("restarts the previous healthy container and removes the failed candidate", async () => {
+    const calls: string[][] = [];
+    const engine = new DockerTestDeploymentEngine({ image, network: "vcp-test", deploymentRoot }, { async get() { return artifact; }, async put() {}, async deleteExpired() { return 0; } }, async (args) => { calls.push([...args]); return args[0] === "port" ? "127.0.0.1:31000" : "ok"; });
+    const target = { ...release, id: "44444444-4444-4444-8444-444444444444", status: "healthy" as const, deploymentUrl: "http://127.0.0.1:30001" };
+    await expect(engine.rollback(release, target)).resolves.toEqual({ deploymentUrl: "http://127.0.0.1:31000" });
+    expect(calls.map((args) => args.slice(0, 2))).toEqual([["inspect", `vcp-test-${target.id}`], ["start", `vcp-test-${target.id}`], ["rm", "-f"], ["port", `vcp-test-${target.id}`]]);
+  });
 });

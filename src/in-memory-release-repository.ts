@@ -20,6 +20,7 @@ export class InMemoryReleaseRepository implements ReleaseRepository {
     this.rows[index] = claimed; return claimed;
   }
   async healthy(releaseId: string, deploymentUrl: string, occurredAt: string, event: AuditEvent) { this.replace(releaseId, { status: "healthy", deploymentUrl, healthVerifiedAt: occurredAt, completedAt: occurredAt }); await this.audit.append(event); }
+  async rolledBack(releaseId: string, deploymentUrl: string, error: string, occurredAt: string, event: AuditEvent) { this.replace(releaseId, { status: "rolled-back", deploymentUrl, error, healthVerifiedAt: occurredAt, completedAt: occurredAt }); await this.audit.append(event); }
   async fail(releaseId: string, error: string, occurredAt: string, event: AuditEvent) { this.replace(releaseId, { status: "failed", error, completedAt: occurredAt }); await this.audit.append(event); }
   private replace(id: string, change: Partial<ReleaseRecord>) { const index = this.rows.findIndex((row) => row.id === id); const current = this.rows[index]; if (!current) throw new Error("Release not found"); this.rows[index] = { ...current, ...change }; }
 }
