@@ -24,6 +24,7 @@ import {
 import { StructuredLogger } from "./observability.js";
 import { OidcAccessTokenVerifier } from "./oidc-access-token-verifier.js";
 import { ManifestAssessmentEngine, UnavailableSourceRepository } from "./manifest-assessment-engine.js";
+import { GitHubSourceRepository } from "./git-source-repository.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -50,11 +51,18 @@ export async function createApplicationRuntime(
         allowHttp: process.env.OIDC_ALLOW_HTTP === "true",
       })
     : new SpikeAccessTokenVerifier(process.env.SPIKE_IDENTITY_ENABLED === "true");
+  const sourceRepository = process.env.GITHUB_SOURCE_ENABLED === "true"
+    ? new GitHubSourceRepository({
+        ...(process.env.GITHUB_TOKEN ? { token: process.env.GITHUB_TOKEN } : {}),
+        timeoutMs: Number(process.env.GITHUB_CHECKOUT_TIMEOUT_MS ?? 60_000),
+        maximumManifestBytes: Number(process.env.GITHUB_MANIFEST_BYTE_LIMIT ?? 1024 * 1024),
+      })
+    : new UnavailableSourceRepository();
   if (!connectionString) {
     const audit = new InMemoryAuditRepository();
     const assessments = new InMemoryAssessmentRepository(audit);
     const applications = new InMemoryApplicationRepository(audit);
-    const engine = new ManifestAssessmentEngine(new UnavailableSourceRepository());
+    const engine = new ManifestAssessmentEngine(sourceRepository);
     return {
       applications: new ApplicationService(
         applications,
@@ -83,7 +91,7 @@ export async function createApplicationRuntime(
   await migrateToLatest(db);
   const assessments = new PostgresAssessmentRepository(db);
   const applications = new PostgresApplicationRepository(db);
-  const engine = new ManifestAssessmentEngine(new UnavailableSourceRepository());
+  const engine = new ManifestAssessmentEngine(sourceRepository);
   return {
     applications: new ApplicationService(
       applications,

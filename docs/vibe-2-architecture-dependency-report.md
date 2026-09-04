@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 23 |
-| Local dependency edges | 60 |
+| Classified production modules | 24 |
+| Local dependency edges | 62 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -33,7 +33,7 @@ Dependencies must point inward:
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
 | application | 4 | `application-service.ts`, `assessment-service.ts`, `identity.ts`, `observability.ts` |
-| adapter | 14 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| adapter | 15 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -64,6 +64,7 @@ Dependencies must point inward:
 | `controller.ts` | adapter | `identity.ts` | application |
 | `controller.ts` | adapter | `openapi.ts` | adapter |
 | `database.ts` | adapter | `observability.ts` | application |
+| `git-source-repository.ts` | adapter | `assessment-service.ts` | application |
 | `identity.ts` | application | `domain.ts` | domain |
 | `in-memory-assessment-repository.ts` | adapter | `assessment-service.ts` | application |
 | `in-memory-assessment-repository.ts` | adapter | `domain.ts` | domain |
@@ -82,6 +83,7 @@ Dependencies must point inward:
 | `persistence.ts` | composition | `application-service.ts` | application |
 | `persistence.ts` | composition | `assessment-service.ts` | application |
 | `persistence.ts` | composition | `database.ts` | adapter |
+| `persistence.ts` | composition | `git-source-repository.ts` | adapter |
 | `persistence.ts` | composition | `identity.ts` | application |
 | `persistence.ts` | composition | `in-memory-assessment-repository.ts` | adapter |
 | `persistence.ts` | composition | `in-memory-repositories.ts` | adapter |
@@ -107,7 +109,7 @@ Dependencies must point inward:
 | --- | --- |
 | domain | None |
 | application | `node:async_hooks`, `node:crypto` |
-| adapter | `@nestjs/common`, `@nestjs/swagger`, `fastify`, `jose`, `kysely`, `node:crypto`, `pg`, `zod` |
+| adapter | `@nestjs/common`, `@nestjs/swagger`, `fastify`, `jose`, `kysely`, `node:child_process`, `node:crypto`, `node:fs/promises`, `node:os`, `node:path`, `node:util`, `pg`, `zod` |
 | composition | `@fastify/helmet`, `@fastify/static`, `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-fastify`, `node:crypto`, `node:path`, `reflect-metadata` |
 
 ## Violations and cycles
