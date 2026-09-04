@@ -254,6 +254,38 @@ const asynchronousBuildSchema: Migration = {
   },
 };
 
+const testReleaseSchema: Migration = {
+  async up(db) {
+    await db.schema.createTable("releases")
+      .addColumn("id", "uuid", (column) => column.primaryKey())
+      .addColumn("company_id", "varchar(100)", (column) => column.notNull().references("companies.id").onDelete("restrict"))
+      .addColumn("application_id", "uuid", (column) => column.notNull().references("applications.id").onDelete("cascade"))
+      .addColumn("build_id", "uuid", (column) => column.notNull().references("builds.id").onDelete("restrict"))
+      .addColumn("artifact_id", "uuid", (column) => column.notNull())
+      .addColumn("artifact_digest", "varchar(71)", (column) => column.notNull())
+      .addColumn("environment", "varchar(16)", (column) => column.notNull())
+      .addColumn("status", "varchar(40)", (column) => column.notNull().defaultTo("pending"))
+      .addColumn("idempotency_key", "varchar(100)", (column) => column.notNull())
+      .addColumn("correlation_id", "varchar(160)", (column) => column.notNull())
+      .addColumn("rollback_target_release_id", "uuid")
+      .addColumn("deployment_url", "text").addColumn("error", "text").addColumn("locked_by", "varchar(160)")
+      .addColumn("created_at", "timestamptz", (column) => column.notNull())
+      .addColumn("deployed_at", "timestamptz").addColumn("health_verified_at", "timestamptz").addColumn("completed_at", "timestamptz")
+      .addUniqueConstraint("releases_application_idempotency_uq", ["company_id", "application_id", "idempotency_key"])
+      .addCheckConstraint("releases_environment_check", sql`environment in ('test')`)
+      .addCheckConstraint("releases_status_check", sql`status in ('pending', 'deploying', 'healthy', 'failed', 'rolled-back')`)
+      .execute();
+    await db.schema.createIndex("releases_claim_idx").on("releases").columns(["status", "created_at"]).execute();
+    await sql`alter table audit_events drop constraint audit_events_entity_type_check`.execute(db);
+    await sql`alter table audit_events add constraint audit_events_entity_type_check check (entity_type in ('application', 'assessment', 'build', 'release'))`.execute(db);
+  },
+  async down(db) {
+    await sql`alter table audit_events drop constraint audit_events_entity_type_check`.execute(db);
+    await sql`alter table audit_events add constraint audit_events_entity_type_check check (entity_type in ('application', 'assessment', 'build'))`.execute(db);
+    await db.schema.dropTable("releases").execute();
+  },
+};
+
 class ControlPlaneMigrationProvider implements MigrationProvider {
   async getMigrations(): Promise<Record<string, Migration>> {
     return {
@@ -262,6 +294,7 @@ class ControlPlaneMigrationProvider implements MigrationProvider {
       "003_asynchronous_assessments": asynchronousAssessmentSchema,
       "004_immutable_assessment_source": immutableAssessmentSourceSchema,
       "005_asynchronous_builds": asynchronousBuildSchema,
+      "006_test_releases": testReleaseSchema,
     };
   }
 }

@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 39 |
-| Local dependency edges | 104 |
+| Classified production modules | 42 |
+| Local dependency edges | 112 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -32,8 +32,8 @@ Dependencies must point inward:
 | Layer | Count | Modules |
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
-| application | 9 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts` |
-| adapter | 25 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `filesystem-artifact-store.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-repositories.ts` |
+| application | 10 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts`, `release-service.ts` |
+| adapter | 27 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `filesystem-artifact-store.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -101,6 +101,9 @@ Dependencies must point inward:
 | `in-memory-build-record-repository.ts` | adapter | `build-job-service.ts` | application |
 | `in-memory-build-record-repository.ts` | adapter | `domain.ts` | domain |
 | `in-memory-build-record-repository.ts` | adapter | `in-memory-repositories.ts` | adapter |
+| `in-memory-release-repository.ts` | adapter | `domain.ts` | domain |
+| `in-memory-release-repository.ts` | adapter | `in-memory-repositories.ts` | adapter |
+| `in-memory-release-repository.ts` | adapter | `release-service.ts` | application |
 | `in-memory-repositories.ts` | adapter | `application-service.ts` | application |
 | `in-memory-repositories.ts` | adapter | `domain.ts` | domain |
 | `main.ts` | composition | `app.module.ts` | composition |
@@ -141,9 +144,14 @@ Dependencies must point inward:
 | `postgres-build-record-repository.ts` | adapter | `build-job-service.ts` | application |
 | `postgres-build-record-repository.ts` | adapter | `database.ts` | adapter |
 | `postgres-build-record-repository.ts` | adapter | `domain.ts` | domain |
+| `postgres-release-repository.ts` | adapter | `database.ts` | adapter |
+| `postgres-release-repository.ts` | adapter | `domain.ts` | domain |
+| `postgres-release-repository.ts` | adapter | `release-service.ts` | application |
 | `postgres-repositories.ts` | adapter | `application-service.ts` | application |
 | `postgres-repositories.ts` | adapter | `database.ts` | adapter |
 | `postgres-repositories.ts` | adapter | `domain.ts` | domain |
+| `release-service.ts` | application | `build-job-service.ts` | application |
+| `release-service.ts` | application | `domain.ts` | domain |
 
 ## External dependency evidence
 

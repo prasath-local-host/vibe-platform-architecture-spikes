@@ -53,6 +53,8 @@ Build outputs now have a content-addressed artifact-store boundary and a bounded
 
 Successful build jobs now publish only files under configured output directories (default `dist`) after the networkless build completes. Output collection rejects links and special entries and applies byte/file-count limits. The artifact is stored before the build record completes, and its UUID plus digest become durable build evidence. `BUILD_ARTIFACT_ROOT` is mandatory when the worker is enabled; `BUILD_OUTPUT_DIRECTORIES` and `BUILD_ARTIFACT_RETENTION_DAYS` control publication. Production object storage, malware scanning and release records remain subsequent boundaries.
 
+Test deployments now have a durable release-record boundary. A release can reference only a completed build and copies its artifact UUID and digest. The asynchronous release worker records deployment URL only after deployment, marks the release healthy only after an explicit health check, and otherwise stores a terminal failure. Each new release captures the latest healthy release as its rollback target. PostgreSQL uses idempotent creation, `SKIP LOCKED` claiming and transactional terminal audit evidence. A concrete datacenter deployment/rollback adapter and authenticated release routes remain the next slice.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

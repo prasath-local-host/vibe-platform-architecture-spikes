@@ -41,7 +41,7 @@ export interface AuditEventTable {
   actor_role: "operator" | "company-user";
   company_id: string;
   action: string;
-  entity_type: "application" | "assessment" | "build";
+  entity_type: "application" | "assessment" | "build" | "release";
   entity_id: string;
   correlation_id: string;
 }
@@ -64,6 +64,15 @@ export interface BuildRecordTable {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
+}
+
+export interface ReleaseRecordTable {
+  id: string; company_id: string; application_id: string; build_id: string;
+  artifact_id: string; artifact_digest: string; environment: "test";
+  status: "pending" | "deploying" | "healthy" | "failed" | "rolled-back";
+  idempotency_key: string; correlation_id: string; rollback_target_release_id: string | null;
+  deployment_url: string | null; error: string | null; locked_by: string | null;
+  created_at: string; deployed_at: string | null; health_verified_at: string | null; completed_at: string | null;
 }
 
 export interface AssessmentTable {
@@ -92,6 +101,7 @@ export interface Database {
   audit_events: AuditEventTable;
   assessments: AssessmentTable;
   builds: BuildRecordTable;
+  releases: ReleaseRecordTable;
 }
 
 export function createDatabase(
