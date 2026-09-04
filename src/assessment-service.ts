@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Actor, Assessment, AuditEvent } from "./domain.js";
-import { requireCompanyAccess } from "./domain.js";
+import { ApplicationNotFoundError, requireCompanyAccess } from "./domain.js";
+import type { ApplicationRepository } from "./application-service.js";
 import {
   runWithCorrelation,
   silentLogger,
@@ -27,23 +28,47 @@ export interface SubmitAssessmentCommand {
   readonly actor: Actor;
   readonly companyId: string;
   readonly applicationId: string;
+  readonly sourceRevision: string;
   readonly idempotencyKey: string;
   readonly correlationId: string;
+}
+
+export interface SourceFile {
+  readonly path: string;
+  readonly content: string;
+}
+
+export interface SourceSnapshot {
+  readonly revision: string;
+  readonly files: readonly SourceFile[];
+}
+
+export interface SourceRepository {
+  checkout(repositoryUrl: string, revision: string): Promise<SourceSnapshot>;
+}
+
+export interface AssessmentEngine {
+  assess(repositoryUrl: string, revision: string): Promise<NonNullable<Assessment["result"]>>;
 }
 
 export class AssessmentService {
   constructor(
     private readonly assessments: AssessmentRepository,
+    private readonly applications: ApplicationRepository,
     private readonly logger: OperationalLogger = silentLogger,
   ) {}
 
   async submit(command: SubmitAssessmentCommand): Promise<Assessment> {
     requireCompanyAccess(command.actor, command.companyId);
+    const application = await this.applications.findById(command.companyId, command.applicationId);
+    if (!application) throw new ApplicationNotFoundError();
     const now = new Date().toISOString();
     const assessment: Assessment = {
       id: randomUUID(),
       companyId: command.companyId,
       applicationId: command.applicationId,
+      repositoryUrl: application.repositoryUrl,
+      sourceRevision: command.sourceRevision,
       idempotencyKey: command.idempotencyKey,
       correlationId: command.correlationId,
       status: "queued",
@@ -113,6 +138,7 @@ export class AssessmentWorker {
   constructor(
     private readonly workerId: string,
     private readonly assessments: AssessmentRepository,
+    private readonly engine: AssessmentEngine,
     private readonly logger: OperationalLogger = silentLogger,
   ) {}
 
@@ -140,12 +166,13 @@ export class AssessmentWorker {
           companyId: assessment.companyId,
           assessmentId: assessment.id,
         });
+        const result = await this.engine.assess(
+          assessment.repositoryUrl,
+          assessment.sourceRevision,
+        );
         await this.assessments.complete(
           assessment.id,
-          {
-            profile: "placeholder-web-application",
-            findings: [],
-          },
+          result,
           { ...eventBase, action: "assessment.completed" },
         );
         this.logger.info("audit.event.persisted", {

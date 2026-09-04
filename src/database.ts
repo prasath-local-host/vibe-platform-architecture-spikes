@@ -50,6 +50,8 @@ export interface AssessmentTable {
   id: string;
   company_id: string;
   application_id: string;
+  repository_url: string;
+  source_revision: string;
   idempotency_key: string;
   correlation_id: string;
   status: "queued" | "running" | "completed" | "failed";

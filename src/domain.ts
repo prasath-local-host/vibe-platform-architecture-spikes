@@ -33,6 +33,8 @@ export interface Assessment {
   readonly id: string;
   readonly companyId: string;
   readonly applicationId: string;
+  readonly repositoryUrl: string;
+  readonly sourceRevision: string;
   readonly idempotencyKey: string;
   readonly correlationId: string;
   readonly status: AssessmentStatus;
@@ -40,11 +42,19 @@ export interface Assessment {
   readonly result?: {
     readonly profile: string;
     readonly findings: readonly string[];
+    readonly manifests: readonly string[];
+    readonly detectedStack: readonly string[];
   };
   readonly error?: string;
   readonly createdAt: string;
   readonly startedAt?: string;
   readonly completedAt?: string;
+}
+
+export class ApplicationNotFoundError extends Error {
+  constructor() {
+    super("Application not found");
+  }
 }
 
 export class ForbiddenError extends Error {

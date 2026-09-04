@@ -38,6 +38,16 @@ function auditFromRow(row: Selectable<AuditEventTable>): AuditEvent {
 export class PostgresApplicationRepository implements ApplicationRepository {
   constructor(private readonly db: Kysely<Database>) {}
 
+  async findById(companyId: string, applicationId: string) {
+    const row = await this.db
+      .selectFrom("applications")
+      .selectAll()
+      .where("company_id", "=", companyId)
+      .where("id", "=", applicationId)
+      .executeTakeFirst();
+    return row ? applicationFromRow(row) : undefined;
+  }
+
   async findByIdempotencyKey(companyId: string, key: string) {
     const row = await this.db
       .selectFrom("applications")

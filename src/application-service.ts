@@ -4,6 +4,7 @@ import { requireCompanyAccess } from "./domain.js";
 import { silentLogger, type OperationalLogger } from "./observability.js";
 
 export interface ApplicationRepository {
+  findById(companyId: string, applicationId: string): Promise<Application | undefined>;
   findByIdempotencyKey(companyId: string, key: string): Promise<Application | undefined>;
   register(application: Application, event: AuditEvent): Promise<Application>;
   listByCompany(companyId: string): Promise<readonly Application[]>;
@@ -67,5 +68,10 @@ export class ApplicationService {
   async list(actor: Actor, companyId: string): Promise<readonly Application[]> {
     requireCompanyAccess(actor, companyId);
     return this.applications.listByCompany(companyId);
+  }
+
+  async get(actor: Actor, companyId: string, applicationId: string): Promise<Application | undefined> {
+    requireCompanyAccess(actor, companyId);
+    return this.applications.findById(companyId, applicationId);
   }
 }

@@ -8,6 +8,8 @@ export interface Application {
 export interface Assessment {
   readonly id: string;
   readonly applicationId: string;
+  readonly repositoryUrl: string;
+  readonly sourceRevision: string;
   readonly correlationId: string;
   readonly status: "queued" | "running" | "completed" | "failed";
   readonly createdAt: string;
@@ -50,9 +52,9 @@ export const portalApi = {
       body: JSON.stringify({ name, repositoryUrl, idempotencyKey: crypto.randomUUID() }),
     }),
   assessments: (companyId: string, applicationId: string) => request<Assessment[]>(`/companies/${encodeURIComponent(companyId)}/applications/${applicationId}/assessments`),
-  submitAssessment: (companyId: string, applicationId: string) =>
+  submitAssessment: (companyId: string, applicationId: string, sourceRevision: string) =>
     request<Assessment>(`/companies/${encodeURIComponent(companyId)}/applications/${applicationId}/assessments`, {
       method: "POST",
-      body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), sourceRevision }),
     }),
 };

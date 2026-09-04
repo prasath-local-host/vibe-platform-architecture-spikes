@@ -53,12 +53,13 @@ describe("documented route authorization contract", () => {
       [],
       ["otp"],
     );
+    const applicationRepository = new InMemoryApplicationRepository(audit);
     const applications = new AppController(
-      new ApplicationService(new InMemoryApplicationRepository(audit), audit),
+      new ApplicationService(applicationRepository, audit),
       identity,
     );
     const assessments = new AssessmentController(
-      new AssessmentService(new InMemoryAssessmentRepository(audit)),
+      new AssessmentService(new InMemoryAssessmentRepository(audit), applicationRepository),
       identity,
     );
     const applicationId = "11111111-1111-4111-8111-111111111111";
@@ -91,6 +92,7 @@ describe("documented route authorization contract", () => {
         invoke: (headers) =>
           assessments.submit("company-b", applicationId, headers, {
             idempotencyKey: "authorization-probe",
+            sourceRevision: "0123456789abcdef0123456789abcdef01234567",
           }),
       },
       {

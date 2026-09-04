@@ -43,6 +43,14 @@ export class SubmitAssessmentRequest {
     maxLength: 100,
   })
   idempotencyKey!: string;
+
+  @ApiProperty({
+    type: String,
+    pattern: "^[0-9a-fA-F]{40}$",
+    description: "Immutable Git commit SHA to assess. Branch and tag names are not accepted.",
+    example: "0123456789abcdef0123456789abcdef01234567",
+  })
+  sourceRevision!: string;
 }
 
 export class HttpErrorResponse {
@@ -95,8 +103,8 @@ export class ApplicationResponse {
 export class AssessmentResultResponse {
   @ApiProperty({
     type: String,
-    example: "placeholder-web-application",
-    description: "Detected application profile. This spike currently returns a placeholder profile.",
+    example: "nextjs-web-application",
+    description: "Application profile derived from committed repository manifests.",
   })
   profile!: string;
 
@@ -106,6 +114,12 @@ export class AssessmentResultResponse {
     description: "Machine-produced readiness findings; empty when no findings are produced.",
   })
   findings!: string[];
+
+  @ApiProperty({ type: [String], description: "Supported manifests detected at the repository root." })
+  manifests!: string[];
+
+  @ApiProperty({ type: [String], description: "Technology identifiers derived from committed manifests." })
+  detectedStack!: string[];
 }
 
 export class AssessmentResponse {
@@ -117,6 +131,12 @@ export class AssessmentResponse {
 
   @ApiProperty({ type: String, format: "uuid", description: "Application being assessed." })
   applicationId!: string;
+
+  @ApiProperty({ type: String, format: "uri", description: "Repository URL copied from the registered application when queued." })
+  repositoryUrl!: string;
+
+  @ApiProperty({ type: String, description: "Immutable source commit assessed by the worker." })
+  sourceRevision!: string;
 
   @ApiProperty({ type: String, description: "Idempotency key accepted for this assessment." })
   idempotencyKey!: string;

@@ -50,6 +50,7 @@ describe("OpenAPI generation", () => {
 
     expect(applicationPost?.responses["400"]).toBeDefined();
     expect(assessmentPost?.responses["400"]).toBeDefined();
+    expect(assessmentPost?.responses["404"]).toBeDefined();
     expect(assessmentGet?.responses["404"]).toBeDefined();
     expect(document.components?.schemas?.HttpErrorResponse).toBeDefined();
     expect(document.components?.schemas?.ValidationIssueResponse).toBeDefined();
@@ -82,7 +83,10 @@ describe("OpenAPI generation", () => {
       },
     });
     expect(schemas?.SubmitAssessmentRequest).toMatchObject({
-      required: ["idempotencyKey"],
+      required: ["idempotencyKey", "sourceRevision"],
+      properties: {
+        sourceRevision: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
+      },
     });
     expect(schemas?.AssessmentResponse).toMatchObject({
       required: expect.not.arrayContaining(["result", "error", "startedAt", "completedAt"]),

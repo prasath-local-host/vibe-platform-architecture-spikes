@@ -6,7 +6,8 @@ import {
 } from "../src/observability.js";
 import { AssessmentService, AssessmentWorker } from "../src/assessment-service.js";
 import { InMemoryAssessmentRepository } from "../src/in-memory-assessment-repository.js";
-import { InMemoryAuditRepository } from "../src/in-memory-repositories.js";
+import { InMemoryApplicationRepository, InMemoryAuditRepository } from "../src/in-memory-repositories.js";
+import { ManifestAssessmentEngine } from "../src/manifest-assessment-engine.js";
 
 describe("structured correlation evidence", () => {
   it("emits machine-readable records and inherits asynchronous context", async () => {
@@ -35,13 +36,17 @@ describe("structured correlation evidence", () => {
     const logger = new StructuredLogger("test-service", (record) => records.push(record));
     const audit = new InMemoryAuditRepository();
     const repository = new InMemoryAssessmentRepository(audit);
-    const service = new AssessmentService(repository, logger);
-    const worker = new AssessmentWorker("worker-one", repository, logger);
+    const applications = new InMemoryApplicationRepository();
+    await applications.register({ id: "11111111-1111-4111-8111-111111111111", companyId: "company-a", name: "App", repositoryUrl: "https://example.test/app", idempotencyKey: "registered-app", createdAt: new Date().toISOString() }, { id: "22222222-2222-4222-8222-222222222222", occurredAt: new Date().toISOString(), actorSubject: "user-a", actorRole: "company-user", companyId: "company-a", action: "application.registered", entityType: "application", entityId: "11111111-1111-4111-8111-111111111111", correlationId: "registration" });
+    const engine = new ManifestAssessmentEngine({ async checkout(_url, revision) { return { revision, files: [] }; } });
+    const service = new AssessmentService(repository, applications, logger);
+    const worker = new AssessmentWorker("worker-one", repository, engine, logger);
 
     const assessment = await service.submit({
       actor: { subject: "user-a", role: "company-user", companyId: "company-a" },
       companyId: "company-a",
-      applicationId: "application-a",
+      applicationId: "11111111-1111-4111-8111-111111111111",
+      sourceRevision: "0123456789abcdef0123456789abcdef01234567",
       idempotencyKey: "assessment-request",
       correlationId: "corr-assessment-1",
     });

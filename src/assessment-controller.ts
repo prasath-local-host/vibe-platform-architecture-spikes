@@ -25,7 +25,7 @@ import {
   ApiForbiddenResponse,
 } from "@nestjs/swagger";
 import { AssessmentService } from "./assessment-service.js";
-import { ForbiddenError } from "./domain.js";
+import { ApplicationNotFoundError, ForbiddenError } from "./domain.js";
 import {
   AuthenticationError,
   IdentityConfigurationError,
@@ -40,6 +40,7 @@ import {
 
 const submitSchema = z.object({
   idempotencyKey: z.string().min(8).max(100),
+  sourceRevision: z.string().regex(/^[0-9a-f]{40}$/i, "Expected an immutable 40-character Git commit SHA"),
 });
 
 @Controller("companies/:companyId/applications/:applicationId/assessments")
@@ -77,6 +78,10 @@ export class AssessmentController {
     type: AssessmentResponse,
     description: "Queued assessment, or the original assessment for an idempotent retry.",
   })
+  @ApiNotFoundResponse({
+    type: HttpErrorResponse,
+    description: "The registered application does not exist in the requested company.",
+  })
   async submit(
     @Param("companyId") companyId: string,
     @Param("applicationId") applicationId: string,
@@ -91,6 +96,7 @@ export class AssessmentController {
         companyId,
         applicationId,
         idempotencyKey: body.idempotencyKey,
+        sourceRevision: body.sourceRevision.toLowerCase(),
         correlationId: headers["x-correlation-id"] ?? randomUUID(),
       });
     } catch (error) {
@@ -148,6 +154,7 @@ export class AssessmentController {
     if (error instanceof AuthenticationError) throw new HttpException(error.message, 401);
     if (error instanceof IdentityConfigurationError) throw new HttpException(error.message, 503);
     if (error instanceof ForbiddenError) throw new HttpException(error.message, 403);
+    if (error instanceof ApplicationNotFoundError) throw new HttpException(error.message, 404);
     throw error;
   }
 }

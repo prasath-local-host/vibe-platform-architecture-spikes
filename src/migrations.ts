@@ -197,12 +197,33 @@ const asynchronousAssessmentSchema: Migration = {
   },
 };
 
+const immutableAssessmentSourceSchema: Migration = {
+  async up(db) {
+    await db.schema.alterTable("assessments").addColumn("repository_url", "text").execute();
+    await db.schema.alterTable("assessments").addColumn("source_revision", "varchar(64)").execute();
+    await sql`
+      update assessments
+      set repository_url = applications.repository_url,
+          source_revision = 'unresolved'
+      from applications
+      where assessments.application_id = applications.id
+    `.execute(db);
+    await sql`alter table assessments alter column repository_url set not null`.execute(db);
+    await sql`alter table assessments alter column source_revision set not null`.execute(db);
+  },
+  async down(db) {
+    await db.schema.alterTable("assessments").dropColumn("source_revision").execute();
+    await db.schema.alterTable("assessments").dropColumn("repository_url").execute();
+  },
+};
+
 class ControlPlaneMigrationProvider implements MigrationProvider {
   async getMigrations(): Promise<Record<string, Migration>> {
     return {
       "001_initial_control_plane": initialControlPlaneSchema,
       "002_identity_authorization": identityAuthorizationSchema,
       "003_asynchronous_assessments": asynchronousAssessmentSchema,
+      "004_immutable_assessment_source": immutableAssessmentSourceSchema,
     };
   }
 }

@@ -11,6 +11,7 @@ import {
 } from "../src/postgres-repositories.js";
 import { PostgresAuthorizationRepository } from "../src/postgres-authorization-repository.js";
 import { PostgresAssessmentRepository } from "../src/postgres-assessment-repository.js";
+import { ManifestAssessmentEngine } from "../src/manifest-assessment-engine.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const companyA: Actor = {
@@ -190,19 +191,22 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
       correlationId: "application-correlation",
     });
     const repository = new PostgresAssessmentRepository(db);
-    const assessments = new AssessmentService(repository);
+    const applicationRepository = new PostgresApplicationRepository(db);
+    const assessments = new AssessmentService(repository, applicationRepository);
     const submitted = await assessments.submit({
       actor: companyA,
       companyId: "postgres-company-a",
       applicationId: application.id,
       idempotencyKey: "postgres-assessment",
       correlationId: "postgres-assessment-correlation",
+      sourceRevision: "0123456789abcdef0123456789abcdef01234567",
     });
 
     const restartedRepository = new PostgresAssessmentRepository(db);
-    await new AssessmentWorker("postgres-worker", restartedRepository).tick();
+    const engine = new ManifestAssessmentEngine({ async checkout(_url, revision) { return { revision, files: [] }; } });
+    await new AssessmentWorker("postgres-worker", restartedRepository, engine).tick();
     expect(
-      await new AssessmentService(restartedRepository).get(
+      await new AssessmentService(restartedRepository, applicationRepository).get(
         companyA,
         "postgres-company-a",
         submitted.id,

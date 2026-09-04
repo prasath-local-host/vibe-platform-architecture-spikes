@@ -65,6 +65,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [sourceRevision, setSourceRevision] = useState("");
 
   async function loadApplications(target = companyId) {
     setLoading(true); setError("");
@@ -91,7 +92,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
   async function assess(application: Application) {
     setSelected(application); setError("");
     try {
-      await portalApi.submitAssessment(companyId, application.id);
+      await portalApi.submitAssessment(companyId, application.id, sourceRevision.trim());
       setTimeout(() => void portalApi.assessments(companyId, application.id).then(setAssessments), 650);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Assessment failed"); }
   }
@@ -111,7 +112,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
         <div className="card table-card"><div className="section-title"><div><h2>Applications</h2><p>Repositories managed through the control plane.</p></div><button onClick={() => void loadApplications()}>Refresh</button></div>
           {loading ? <p className="empty">Loading applications…</p> : applications.length === 0 ? <p className="empty">No applications registered for this customer.</p> : <div className="app-list">{applications.map((application) => <button key={application.id} className={selected?.id === application.id ? "app-row selected" : "app-row"} onClick={() => setSelected(application)}><span className="app-icon">{application.name.slice(0, 1)}</span><span><strong>{application.name}</strong><small>{application.repositoryUrl}</small></span><span className="badge">Connected</span></button>)}</div>}
         </div>
-        <div className="card detail-card">{selected ? <><div className="section-title"><div><span className="eyebrow blue">APPLICATION</span><h2>{selected.name}</h2></div><span className="badge">{companyId}</span></div><dl><div><dt>Repository</dt><dd>{selected.repositoryUrl}</dd></div><div><dt>Registered</dt><dd>{new Date(selected.createdAt).toLocaleString()}</dd></div></dl><button className="primary full" onClick={() => void assess(selected)}>Run assessment</button><h3>Assessment history</h3>{assessments.length ? assessments.map((assessment) => <div className="assessment" key={assessment.id}><span className={`status ${assessment.status}`}>{assessment.status}</span><small>{assessment.correlationId}</small></div>) : <p className="empty">No assessments yet.</p>}</> : <div className="empty-state"><div>↗</div><h2>Select an application</h2><p>Open an application to view its deployment assessment history.</p></div>}</div>
+        <div className="card detail-card">{selected ? <><div className="section-title"><div><span className="eyebrow blue">APPLICATION</span><h2>{selected.name}</h2></div><span className="badge">{companyId}</span></div><dl><div><dt>Repository</dt><dd>{selected.repositoryUrl}</dd></div><div><dt>Registered</dt><dd>{new Date(selected.createdAt).toLocaleString()}</dd></div></dl><label>Commit SHA<input value={sourceRevision} onChange={(event) => setSourceRevision(event.target.value)} pattern="[0-9a-fA-F]{40}" maxLength={40} required placeholder="40-character Git commit SHA" /></label><button className="primary full" disabled={!/^[0-9a-f]{40}$/i.test(sourceRevision.trim())} onClick={() => void assess(selected)}>Run assessment</button><h3>Assessment history</h3>{assessments.length ? assessments.map((assessment) => <div className="assessment" key={assessment.id}><span className={`status ${assessment.status}`}>{assessment.status}</span><small>{assessment.sourceRevision.slice(0, 12)} · {assessment.correlationId}</small></div>) : <p className="empty">No assessments yet.</p>}</> : <div className="empty-state"><div>↗</div><h2>Select an application</h2><p>Open an application to view its deployment assessment history.</p></div>}</div>
       </section>
       {showRegister && <div className="modal-backdrop"><form className="card modal" onSubmit={register}><div className="section-title"><div><span className="eyebrow blue">NEW APPLICATION</span><h2>Connect a repository</h2></div><button type="button" onClick={() => setShowRegister(false)}>×</button></div><label>Application name<input name="name" required placeholder="Customer evaluation portal" /></label><label>Repository URL<input name="repositoryUrl" type="url" required placeholder="https://github.com/company/application" /></label><div className="modal-actions"><button type="button" onClick={() => setShowRegister(false)}>Cancel</button><button className="primary" type="submit">Register application</button></div></form></div>}
     </main>

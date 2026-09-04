@@ -23,6 +23,7 @@ import {
 } from "./postgres-repositories.js";
 import { StructuredLogger } from "./observability.js";
 import { OidcAccessTokenVerifier } from "./oidc-access-token-verifier.js";
+import { ManifestAssessmentEngine, UnavailableSourceRepository } from "./manifest-assessment-engine.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -52,16 +53,19 @@ export async function createApplicationRuntime(
   if (!connectionString) {
     const audit = new InMemoryAuditRepository();
     const assessments = new InMemoryAssessmentRepository(audit);
+    const applications = new InMemoryApplicationRepository(audit);
+    const engine = new ManifestAssessmentEngine(new UnavailableSourceRepository());
     return {
       applications: new ApplicationService(
-        new InMemoryApplicationRepository(audit),
+        applications,
         audit,
         logger,
       ),
-      assessments: new AssessmentService(assessments, logger),
+      assessments: new AssessmentService(assessments, applications, logger),
       assessmentWorker: new AssessmentWorker(
         process.env.ASSESSMENT_WORKER_ID ?? `local-${process.pid}`,
         assessments,
+        engine,
         logger,
       ),
       identity: new IdentityService(
@@ -78,16 +82,19 @@ export async function createApplicationRuntime(
   const db = createDatabase(connectionString, logger);
   await migrateToLatest(db);
   const assessments = new PostgresAssessmentRepository(db);
+  const applications = new PostgresApplicationRepository(db);
+  const engine = new ManifestAssessmentEngine(new UnavailableSourceRepository());
   return {
     applications: new ApplicationService(
-      new PostgresApplicationRepository(db),
+      applications,
       new PostgresAuditRepository(db),
       logger,
     ),
-    assessments: new AssessmentService(assessments, logger),
+    assessments: new AssessmentService(assessments, applications, logger),
     assessmentWorker: new AssessmentWorker(
       process.env.ASSESSMENT_WORKER_ID ?? `worker-${process.pid}`,
       assessments,
+      engine,
       logger,
     ),
     identity: new IdentityService(

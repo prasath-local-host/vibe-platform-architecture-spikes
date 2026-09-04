@@ -4,6 +4,9 @@ import type { Application, AuditEvent } from "./domain.js";
 export class InMemoryApplicationRepository implements ApplicationRepository {
   private readonly rows: Application[] = [];
   constructor(private readonly audit?: InMemoryAuditRepository) {}
+  async findById(companyId: string, applicationId: string) {
+    return this.rows.find((row) => row.companyId === companyId && row.id === applicationId);
+  }
   async findByIdempotencyKey(companyId: string, key: string) {
     return this.rows.find((row) => row.companyId === companyId && row.idempotencyKey === key);
   }

@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 22 |
-| Local dependency edges | 57 |
+| Classified production modules | 23 |
+| Local dependency edges | 60 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -33,7 +33,7 @@ Dependencies must point inward:
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
 | application | 4 | `application-service.ts`, `assessment-service.ts`, `identity.ts`, `observability.ts` |
-| adapter | 13 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| adapter | 14 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -53,6 +53,7 @@ Dependencies must point inward:
 | `assessment-controller.ts` | adapter | `domain.ts` | domain |
 | `assessment-controller.ts` | adapter | `identity.ts` | application |
 | `assessment-controller.ts` | adapter | `openapi.ts` | adapter |
+| `assessment-service.ts` | application | `application-service.ts` | application |
 | `assessment-service.ts` | application | `domain.ts` | domain |
 | `assessment-service.ts` | application | `observability.ts` | application |
 | `assessment-worker-host.ts` | adapter | `assessment-service.ts` | application |
@@ -73,6 +74,7 @@ Dependencies must point inward:
 | `main.ts` | composition | `browser-session.ts` | adapter |
 | `main.ts` | composition | `observability.ts` | application |
 | `main.ts` | composition | `openapi.ts` | adapter |
+| `manifest-assessment-engine.ts` | adapter | `assessment-service.ts` | application |
 | `migrate.ts` | composition | `database.ts` | adapter |
 | `migrate.ts` | composition | `migrations.ts` | adapter |
 | `migrations.ts` | adapter | `database.ts` | adapter |
@@ -83,6 +85,7 @@ Dependencies must point inward:
 | `persistence.ts` | composition | `identity.ts` | application |
 | `persistence.ts` | composition | `in-memory-assessment-repository.ts` | adapter |
 | `persistence.ts` | composition | `in-memory-repositories.ts` | adapter |
+| `persistence.ts` | composition | `manifest-assessment-engine.ts` | adapter |
 | `persistence.ts` | composition | `migrations.ts` | adapter |
 | `persistence.ts` | composition | `observability.ts` | application |
 | `persistence.ts` | composition | `oidc-access-token-verifier.ts` | adapter |
