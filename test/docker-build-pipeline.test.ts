@@ -67,4 +67,33 @@ describe("Docker build pipeline handoff", () => {
       .rejects.toThrow("modified immutable source");
     expect(calls).toBe(1);
   });
+
+  it("builds a bounded application subdirectory and publishes paths relative to it", async () => {
+    const nestedArtifact = createSourceArtifact("f".repeat(40), [
+      { path: "fixtures/app/package.json", content: "{}" },
+      { path: "fixtures/app/package-lock.json", content: "{}" },
+      { path: "fixtures/app/build.js", content: "export {};" },
+    ]);
+    let calls = 0;
+    const pipeline = new DockerBuildPipeline({ ...config, workingDirectory: "fixtures/app" }, async (arguments_) => {
+      calls += 1;
+      expect(arguments_).toEqual(expect.arrayContaining(["--workdir", "/workspace/fixtures/app"]));
+      if (calls === 2) {
+        const mount = arguments_[arguments_.indexOf("--mount") + 1]!;
+        const workspace = mount.split(",source=")[1]!.split(",target=")[0]!;
+        await mkdir(join(workspace, "fixtures", "app", "dist"), { recursive: true });
+        await writeFile(join(workspace, "fixtures", "app", "dist", "server.js"), "built");
+      }
+      return { exitCode: 0, output: "ok", outputTruncated: false };
+    });
+
+    await expect(pipeline.execute({ artifact: nestedArtifact, packageManager: "npm", script: "build" }))
+      .resolves.toMatchObject({ status: "succeeded", outputFiles: [{ path: "dist/server.js" }] });
+  });
+
+  it("rejects an unsafe application working directory", async () => {
+    const pipeline = new DockerBuildPipeline({ ...config, workingDirectory: "../customer" });
+    await expect(pipeline.execute({ artifact: artifact(), packageManager: "npm", script: "build" }))
+      .rejects.toThrow("unsafe path");
+  });
 });

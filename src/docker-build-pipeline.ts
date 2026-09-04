@@ -25,6 +25,7 @@ export interface DockerBuildPipelineConfig {
   readonly outputDirectories?: readonly string[];
   readonly maximumArtifactFiles?: number;
   readonly maximumArtifactBytes?: number;
+  readonly workingDirectory?: string;
 }
 
 function safePath(value: string): string {
@@ -82,8 +83,14 @@ export class DockerBuildPipeline implements BuildPipeline {
 
   async execute(request: BuildPipelineRequest): Promise<BuildPipelineResult> {
     verifySourceArtifact(request.artifact);
-    if (!request.artifact.files.some((file) => file.path === lockfile(request.packageManager))) {
-      throw new Error(`Build pipeline requires ${lockfile(request.packageManager)}`);
+    const workingDirectory = this.config.workingDirectory
+      ? safePath(this.config.workingDirectory).split(sep).join("/")
+      : "";
+    const requiredLockfile = workingDirectory
+      ? `${workingDirectory}/${lockfile(request.packageManager)}`
+      : lockfile(request.packageManager);
+    if (!request.artifact.files.some((file) => file.path === requiredLockfile)) {
+      throw new Error(`Build pipeline requires ${requiredLockfile}`);
     }
     const workspace = await mkdtemp(join(tmpdir(), "vcp-pipeline-"));
     const maximumOutputBytes = this.config.maximumOutputBytes ?? 256 * 1024;
@@ -99,11 +106,14 @@ export class DockerBuildPipeline implements BuildPipeline {
         await writeFile(destination, file.content, { flag: "wx" });
       }
 
+      const sourceRoot = workingDirectory ? join(workspace, workingDirectory) : workspace;
+      if (relative(workspace, sourceRoot).startsWith("..")) throw new Error("Build working directory escaped its workspace");
       const mount = `type=bind,source=${workspace},target=/workspace`;
+      const containerWorkingDirectory = workingDirectory ? `/workspace/${workingDirectory}` : "/workspace";
       const common = [
         "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
         "--pids-limit", "256", "--memory", "1g", "--cpus", "2", "--user", "65532:65532",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=128m", "--mount", mount, "--workdir", "/workspace",
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=128m", "--mount", mount, "--workdir", containerWorkingDirectory,
       ];
       const restoreStarted = performance.now();
       const restored = await this.runner([
@@ -156,12 +166,12 @@ export class DockerBuildPipeline implements BuildPipeline {
           outputBytes += metadata.size;
           if (outputBytes > (this.config.maximumArtifactBytes ?? 100 * 1024 * 1024)) throw new Error("Build output exceeds the configured byte limit");
           if (outputFiles.length >= (this.config.maximumArtifactFiles ?? 10_000)) throw new Error("Build output exceeds the configured file-count limit");
-          outputFiles.push({ path: relative(workspace, absolute).split(sep).join("/"), content: await readFile(absolute) });
+          outputFiles.push({ path: relative(sourceRoot, absolute).split(sep).join("/"), content: await readFile(absolute) });
         }
       };
       for (const configured of outputDirectories) {
-        const directory = join(workspace, safePath(configured));
-        if (relative(workspace, directory).startsWith("..")) throw new Error("Build output escaped its workspace");
+        const directory = join(sourceRoot, safePath(configured));
+        if (relative(sourceRoot, directory).startsWith("..")) throw new Error("Build output escaped its workspace");
         try { await collect(directory); }
         catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
       }
