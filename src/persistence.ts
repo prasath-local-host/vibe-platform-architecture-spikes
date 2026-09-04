@@ -38,6 +38,7 @@ import { PostgresReleaseRepository } from "./postgres-release-repository.js";
 import { DockerTestDeploymentEngine } from "./docker-test-deployment-engine.js";
 import { FilesystemIngressRouter } from "./filesystem-ingress-router.js";
 import { TraefikFileReconciler, UnavailableIngressReconciler, type IngressReconciler } from "./traefik-file-reconciler.js";
+import { BaselineArtifactSecurityScanner } from "./artifact-security.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -103,6 +104,7 @@ export async function createApplicationRuntime(
         }),
         artifactStore!,
         Number(process.env.BUILD_ARTIFACT_RETENTION_DAYS ?? 30),
+        new BaselineArtifactSecurityScanner(),
       )
     : new UnavailableBuildJobEngine();
   const releaseConfigurationComplete = Boolean(artifactStore && process.env.RELEASE_RUNTIME_IMAGE && process.env.RELEASE_NETWORK && process.env.RELEASE_DEPLOYMENT_ROOT);

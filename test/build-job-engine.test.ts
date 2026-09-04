@@ -3,6 +3,7 @@ import type { ArtifactStore, BuildArtifact } from "../src/artifact-service.js";
 import { createSourceArtifact } from "../src/build-service.js";
 import { SourceBuildJobEngine } from "../src/build-job-engine.js";
 import type { BuildRecord } from "../src/domain.js";
+import { BaselineArtifactSecurityScanner } from "../src/artifact-security.js";
 
 describe("artifact-publishing build job engine", () => {
   const build: BuildRecord = {
@@ -28,6 +29,7 @@ describe("artifact-publishing build job engine", () => {
       }; } },
       store,
       30,
+      new BaselineArtifactSecurityScanner(),
     );
     const result = await engine.execute(build);
     expect(published).toMatchObject({ companyId: "company-a", buildId: build.id, totalBytes: 5 });
@@ -41,8 +43,26 @@ describe("artifact-publishing build job engine", () => {
       { async execute() { return { status: "succeeded", restoration: { status: "succeeded", exitCode: 0, durationMs: 1, output: "", outputTruncated: false } }; } },
       { async put() { puts += 1; }, async get() { return undefined; }, async deleteExpired() { return 0; } },
       30,
+      new BaselineArtifactSecurityScanner(),
     );
     await expect(engine.execute(build)).rejects.toThrow("no publishable output");
+    expect(puts).toBe(0);
+  });
+
+  it("rejects unsafe output before it reaches artifact storage", async () => {
+    let puts = 0;
+    const engine = new SourceBuildJobEngine(
+      { async acquire() { return createSourceArtifact(build.sourceRevision, []); } },
+      { async execute() { return {
+        status: "succeeded", restoration: { status: "succeeded", exitCode: 0, durationMs: 1, output: "", outputTruncated: false },
+        build: { status: "succeeded", exitCode: 0, durationMs: 1, output: "", outputTruncated: false },
+        outputFiles: [{ path: "dist/key.pem", content: new TextEncoder().encode("-----BEGIN PRIVATE KEY-----") }],
+      }; } },
+      { async put() { puts += 1; }, async get() { return undefined; }, async deleteExpired() { return 0; } },
+      30,
+      new BaselineArtifactSecurityScanner(),
+    );
+    await expect(engine.execute(build)).rejects.toThrow("embedded private key detected");
     expect(puts).toBe(0);
   });
 });

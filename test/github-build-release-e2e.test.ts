@@ -16,6 +16,7 @@ import { GitHubSourceArtifactRepository } from "../src/git-source-artifact-repos
 import { InMemoryReleaseRepository } from "../src/in-memory-release-repository.js";
 import { InMemoryAuditRepository } from "../src/in-memory-repositories.js";
 import { ReleaseService, ReleaseWorker } from "../src/release-service.js";
+import { BaselineArtifactSecurityScanner } from "../src/artifact-security.js";
 
 const image = process.env.VCP_E2E_RUNTIME_IMAGE;
 const revision = process.env.VCP_E2E_GITHUB_REVISION;
@@ -63,6 +64,7 @@ describe.skipIf(!image || !revision)("GitHub build and release E2E", () => {
       }),
       store,
       1,
+      new BaselineArtifactSecurityScanner(),
     );
     const result = await engine.execute(build);
     const completed: BuildRecord = { ...build, status: "completed", result, completedAt: new Date().toISOString() };

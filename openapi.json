@@ -1322,13 +1322,31 @@
               "succeeded",
               "failed"
             ]
+          },
+          "securityStatus": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "securityScanner": {
+            "type": "string",
+            "example": "vcp-baseline-artifact-security/1"
+          },
+          "securityScannedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
           "artifactId",
           "artifactDigest",
           "restorationStatus",
-          "buildStatus"
+          "buildStatus",
+          "securityStatus",
+          "securityScanner",
+          "securityScannedAt"
         ]
       },
       "BuildRecordResponse": {

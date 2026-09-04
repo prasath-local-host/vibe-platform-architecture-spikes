@@ -3,6 +3,7 @@ import type { BuildPipeline } from "./build-pipeline.js";
 import type { SourceArtifactRepository } from "./build-service.js";
 import type { BuildRecord } from "./domain.js";
 import { createBuildArtifact, type ArtifactStore } from "./artifact-service.js";
+import type { ArtifactSecurityScanner } from "./artifact-security.js";
 
 export class SourceBuildJobEngine implements BuildJobEngine {
   constructor(
@@ -10,6 +11,7 @@ export class SourceBuildJobEngine implements BuildJobEngine {
     private readonly pipeline: BuildPipeline,
     private readonly artifacts: ArtifactStore,
     private readonly retentionDays: number,
+    private readonly scanner: ArtifactSecurityScanner,
   ) {}
 
   async execute(build: BuildRecord): Promise<NonNullable<BuildRecord["result"]>> {
@@ -21,8 +23,13 @@ export class SourceBuildJobEngine implements BuildJobEngine {
       companyId: build.companyId, applicationId: build.applicationId, buildId: build.id,
       sourceRevision: build.sourceRevision, files: result.outputFiles, retentionDays: this.retentionDays,
     });
+    const security = await this.scanner.scan(output);
+    if (security.status !== "approved") throw new Error(`Build artifact security rejected: ${security.findings.join("; ")}`);
     await this.artifacts.put(output);
-    return { artifactId: output.id, artifactDigest: output.digest, restorationStatus: "succeeded", buildStatus: "succeeded" };
+    return {
+      artifactId: output.id, artifactDigest: output.digest, restorationStatus: "succeeded", buildStatus: "succeeded",
+      securityStatus: security.status, securityScanner: security.scanner, securityScannedAt: security.scannedAt,
+    };
   }
 }
 

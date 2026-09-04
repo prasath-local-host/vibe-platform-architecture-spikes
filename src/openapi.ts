@@ -73,6 +73,12 @@ export class BuildResultResponse {
   restorationStatus!: string;
   @ApiProperty({ type: String, enum: ["succeeded", "failed"] })
   buildStatus!: string;
+  @ApiProperty({ type: String, enum: ["approved", "rejected"] })
+  securityStatus!: string;
+  @ApiProperty({ type: String, example: "vcp-baseline-artifact-security/1" })
+  securityScanner!: string;
+  @ApiProperty({ type: String, format: "date-time" })
+  securityScannedAt!: string;
 }
 
 export class BuildRecordResponse {

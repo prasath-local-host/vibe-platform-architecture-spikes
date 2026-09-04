@@ -46,6 +46,7 @@ export class ReleaseService {
     const build = await this.builds.findById(command.companyId, command.buildId);
     if (!build || build.applicationId !== command.applicationId) throw new Error("Completed build not found");
     if (build.status !== "completed" || !build.result) throw new Error("Only a completed build can be released");
+    if (build.result.securityStatus !== "approved") throw new Error("Only a security-approved build artifact can be released");
     const previous = await this.releases.latestHealthy(command.companyId, command.applicationId);
     const now = new Date().toISOString();
     const release: ReleaseRecord = {

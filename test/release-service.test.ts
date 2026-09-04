@@ -10,7 +10,7 @@ const build: BuildRecord = {
   id: "11111111-1111-4111-8111-111111111111", companyId: "company-a", applicationId: "22222222-2222-4222-8222-222222222222",
   repositoryUrl: "https://github.com/example/app", sourceRevision: "a".repeat(40), packageManager: "npm", script: "build",
   idempotencyKey: "build-request", correlationId: "build-correlation", status: "completed", attempts: 1,
-  result: { artifactId: "33333333-3333-4333-8333-333333333333", artifactDigest: `sha256:${"b".repeat(64)}`, restorationStatus: "succeeded", buildStatus: "succeeded" },
+  result: { artifactId: "33333333-3333-4333-8333-333333333333", artifactDigest: `sha256:${"b".repeat(64)}`, restorationStatus: "succeeded", buildStatus: "succeeded", securityStatus: "approved", securityScanner: "test-scanner/1", securityScannedAt: new Date().toISOString() },
   createdAt: new Date().toISOString(), completedAt: new Date().toISOString(),
 };
 const builds: BuildRecordRepository = {
@@ -47,6 +47,13 @@ describe("test release lifecycle", () => {
     const { result: _result, ...buildWithoutResult } = build;
     const incomplete: BuildRecordRepository = { ...builds, async findById() { return { ...buildWithoutResult, status: "running" }; } };
     await expect(new ReleaseService(repository, incomplete).create({ actor, companyId: "company-a", applicationId: build.applicationId, buildId: build.id, idempotencyKey: "bad-release", correlationId: "bad" })).rejects.toThrow("completed build");
+  });
+
+  it("rejects a build without an approved artifact-security decision", async () => {
+    const repository = new InMemoryReleaseRepository(new InMemoryAuditRepository());
+    const unapproved: BuildRecordRepository = { ...builds, async findById() { return { ...build, result: { ...build.result!, securityStatus: "rejected" } }; } };
+    await expect(new ReleaseService(repository, unapproved).create({ actor, companyId: "company-a", applicationId: build.applicationId, buildId: build.id, idempotencyKey: "unsafe-release", correlationId: "unsafe" }))
+      .rejects.toThrow("security-approved");
   });
 
   it("automatically restores and verifies the previous healthy release", async () => {

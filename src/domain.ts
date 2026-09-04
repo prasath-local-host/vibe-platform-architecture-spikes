@@ -70,6 +70,9 @@ export interface BuildRecord {
     readonly artifactDigest: string;
     readonly restorationStatus: "succeeded";
     readonly buildStatus: "succeeded" | "failed";
+    readonly securityStatus: "approved" | "rejected";
+    readonly securityScanner: string;
+    readonly securityScannedAt: string;
   };
   readonly error?: string;
   readonly createdAt: string;

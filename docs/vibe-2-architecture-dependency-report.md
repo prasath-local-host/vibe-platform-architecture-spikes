@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 49 |
-| Local dependency edges | 136 |
+| Classified production modules | 50 |
+| Local dependency edges | 139 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -33,7 +33,7 @@ Dependencies must point inward:
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
 | application | 11 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `ingress-router.ts`, `observability.ts`, `release-service.ts` |
-| adapter | 33 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `docker-test-deployment-engine.ts`, `filesystem-artifact-store.ts`, `filesystem-ingress-router.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `ingress-reconciler-host.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts`, `release-controller.ts`, `release-worker-host.ts`, `traefik-file-reconciler.ts` |
+| adapter | 34 | `artifact-security.ts`, `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `docker-test-deployment-engine.ts`, `filesystem-artifact-store.ts`, `filesystem-ingress-router.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `ingress-reconciler-host.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts`, `release-controller.ts`, `release-worker-host.ts`, `traefik-file-reconciler.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -56,6 +56,7 @@ Dependencies must point inward:
 | `app.module.ts` | composition | `release-worker-host.ts` | adapter |
 | `application-service.ts` | application | `domain.ts` | domain |
 | `application-service.ts` | application | `observability.ts` | application |
+| `artifact-security.ts` | adapter | `artifact-service.ts` | application |
 | `assessment-controller.ts` | adapter | `assessment-service.ts` | application |
 | `assessment-controller.ts` | adapter | `domain.ts` | domain |
 | `assessment-controller.ts` | adapter | `identity.ts` | application |
@@ -70,6 +71,7 @@ Dependencies must point inward:
 | `build-controller.ts` | adapter | `domain.ts` | domain |
 | `build-controller.ts` | adapter | `identity.ts` | application |
 | `build-controller.ts` | adapter | `openapi.ts` | adapter |
+| `build-job-engine.ts` | adapter | `artifact-security.ts` | adapter |
 | `build-job-engine.ts` | adapter | `artifact-service.ts` | application |
 | `build-job-engine.ts` | adapter | `build-job-service.ts` | application |
 | `build-job-engine.ts` | adapter | `build-pipeline.ts` | application |
@@ -126,6 +128,7 @@ Dependencies must point inward:
 | `migrations.ts` | adapter | `database.ts` | adapter |
 | `oidc-access-token-verifier.ts` | adapter | `identity.ts` | application |
 | `persistence.ts` | composition | `application-service.ts` | application |
+| `persistence.ts` | composition | `artifact-security.ts` | adapter |
 | `persistence.ts` | composition | `assessment-service.ts` | application |
 | `persistence.ts` | composition | `build-job-engine.ts` | adapter |
 | `persistence.ts` | composition | `build-job-service.ts` | application |
