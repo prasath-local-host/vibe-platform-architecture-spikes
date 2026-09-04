@@ -93,6 +93,11 @@ describe("identity integration boundary", () => {
         sensitiveAction: "build.submit",
       }),
     ).rejects.toThrow("Step-up authentication is required for build.submit");
+    await expect(
+      identity.resolveActor("Bearer ignored", "company-a", {
+        sensitiveAction: "release.create",
+      }),
+    ).rejects.toThrow("Step-up authentication is required for release.create");
   });
 
   it("accepts a sensitive operation with an approved MFA method", async () => {

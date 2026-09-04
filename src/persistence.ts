@@ -32,6 +32,9 @@ import { GitHubSourceArtifactRepository } from "./git-source-artifact-repository
 import { DockerBuildPipeline } from "./docker-build-pipeline.js";
 import { SourceBuildJobEngine, UnavailableBuildJobEngine } from "./build-job-engine.js";
 import { FilesystemArtifactStore } from "./filesystem-artifact-store.js";
+import { ReleaseService } from "./release-service.js";
+import { InMemoryReleaseRepository } from "./in-memory-release-repository.js";
+import { PostgresReleaseRepository } from "./postgres-release-repository.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -39,6 +42,7 @@ export interface ApplicationRuntime {
   readonly assessmentWorker: AssessmentWorker;
   readonly builds: BuildJobService;
   readonly buildWorker: BuildJobWorker;
+  readonly releases: ReleaseService;
   readonly identity: IdentityService;
 }
 
@@ -100,6 +104,7 @@ export async function createApplicationRuntime(
     const assessments = new InMemoryAssessmentRepository(audit);
     const applications = new InMemoryApplicationRepository(audit);
     const builds = new InMemoryBuildRecordRepository(audit);
+    const releases = new InMemoryReleaseRepository(audit);
     const engine = new ManifestAssessmentEngine(sourceRepository);
     return {
       applications: new ApplicationService(
@@ -116,6 +121,7 @@ export async function createApplicationRuntime(
       ),
       builds: new BuildJobService(builds, applications, logger),
       buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `local-build-${process.pid}`, builds, buildEngine, logger),
+      releases: new ReleaseService(releases, builds),
       identity: new IdentityService(
         verifier,
         new InMemoryAuthorizationRepository(
@@ -132,6 +138,7 @@ export async function createApplicationRuntime(
   const assessments = new PostgresAssessmentRepository(db);
   const applications = new PostgresApplicationRepository(db);
   const builds = new PostgresBuildRecordRepository(db);
+  const releases = new PostgresReleaseRepository(db);
   const engine = new ManifestAssessmentEngine(sourceRepository);
   return {
     applications: new ApplicationService(
@@ -148,6 +155,7 @@ export async function createApplicationRuntime(
     ),
     builds: new BuildJobService(builds, applications, logger),
     buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `build-worker-${process.pid}`, builds, buildEngine, logger),
+    releases: new ReleaseService(releases, builds),
     identity: new IdentityService(
       verifier,
       new PostgresAuthorizationRepository(db),

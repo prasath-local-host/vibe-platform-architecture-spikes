@@ -94,6 +94,33 @@ export class BuildRecordResponse {
   @ApiPropertyOptional({ type: String, format: "date-time" }) completedAt?: string;
 }
 
+export class CreateReleaseRequest {
+  @ApiProperty({ type: String, format: "uuid", description: "Completed build whose verified artifact will be deployed." })
+  buildId!: string;
+  @ApiProperty({ type: String, minLength: 8, maxLength: 100, example: "release-test-commit-v1" })
+  idempotencyKey!: string;
+}
+
+export class ReleaseRecordResponse {
+  @ApiProperty({ type: String, format: "uuid" }) id!: string;
+  @ApiProperty({ type: String }) companyId!: string;
+  @ApiProperty({ type: String, format: "uuid" }) applicationId!: string;
+  @ApiProperty({ type: String, format: "uuid" }) buildId!: string;
+  @ApiProperty({ type: String, format: "uuid" }) artifactId!: string;
+  @ApiProperty({ type: String, pattern: "^sha256:[0-9a-f]{64}$" }) artifactDigest!: string;
+  @ApiProperty({ type: String, enum: ["test"] }) environment!: string;
+  @ApiProperty({ type: String, enum: ["pending", "deploying", "healthy", "failed", "rolled-back"] }) status!: string;
+  @ApiProperty({ type: String }) idempotencyKey!: string;
+  @ApiProperty({ type: String }) correlationId!: string;
+  @ApiPropertyOptional({ type: String, format: "uuid" }) rollbackTargetReleaseId?: string;
+  @ApiPropertyOptional({ type: String, format: "uri" }) deploymentUrl?: string;
+  @ApiPropertyOptional({ type: String }) error?: string;
+  @ApiProperty({ type: String, format: "date-time" }) createdAt!: string;
+  @ApiPropertyOptional({ type: String, format: "date-time" }) deployedAt?: string;
+  @ApiPropertyOptional({ type: String, format: "date-time" }) healthVerifiedAt?: string;
+  @ApiPropertyOptional({ type: String, format: "date-time" }) completedAt?: string;
+}
+
 export class HttpErrorResponse {
   @ApiProperty({ type: Number, example: 401, description: "HTTP status code." })
   statusCode!: number;

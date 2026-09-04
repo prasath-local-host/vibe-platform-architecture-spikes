@@ -696,6 +696,277 @@
           "builds"
         ]
       }
+    },
+    "/companies/{companyId}/applications/{applicationId}/releases": {
+      "post": {
+        "operationId": "ReleaseController_create",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "description": "VCP-controlled company identifier",
+            "schema": {}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReleaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseRecordResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Request is invalid or the build is not completed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ValidationIssueResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer token is missing, invalid, or lacks required step-up assurance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verified subject has no active access to the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Completed build does not exist for this application and company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The configured identity verifier cannot establish trust.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Queue deployment of a completed build to the test environment",
+        "tags": [
+          "releases"
+        ]
+      },
+      "get": {
+        "operationId": "ReleaseController_list",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "description": "VCP-controlled company identifier",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReleaseRecordResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer token is missing, invalid, or lacks required step-up assurance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verified subject has no active access to the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The configured identity verifier cannot establish trust.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List test releases for an application",
+        "tags": [
+          "releases"
+        ]
+      }
+    },
+    "/companies/{companyId}/applications/{applicationId}/releases/{releaseId}": {
+      "get": {
+        "operationId": "ReleaseController_get",
+        "parameters": [
+          {
+            "name": "releaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "description": "VCP-controlled company identifier",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseRecordResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Bearer token is missing, invalid, or lacks required step-up assurance.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Verified subject has no active access to the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Release record does not exist in the requested company.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The configured identity verifier cannot establish trust.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get test-release deployment and health status",
+        "tags": [
+          "releases"
+        ]
+      }
     }
   },
   "info": {
@@ -1147,6 +1418,116 @@
           "correlationId",
           "status",
           "attempts",
+          "createdAt"
+        ]
+      },
+      "CreateReleaseRequest": {
+        "type": "object",
+        "properties": {
+          "buildId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Completed build whose verified artifact will be deployed."
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 100,
+            "example": "release-test-commit-v1"
+          }
+        },
+        "required": [
+          "buildId",
+          "idempotencyKey"
+        ]
+      },
+      "ReleaseRecordResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "buildId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "artifactId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "artifactDigest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "test"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "deploying",
+              "healthy",
+              "failed",
+              "rolled-back"
+            ]
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "correlationId": {
+            "type": "string"
+          },
+          "rollbackTargetReleaseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deploymentUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "error": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deployedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "healthVerifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "applicationId",
+          "buildId",
+          "artifactId",
+          "artifactDigest",
+          "environment",
+          "status",
+          "idempotencyKey",
+          "correlationId",
           "createdAt"
         ]
       }

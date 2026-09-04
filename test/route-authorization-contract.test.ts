@@ -24,6 +24,9 @@ import {
   InMemoryAuditRepository,
 } from "../src/in-memory-repositories.js";
 import { createOpenApiDocument } from "../src/openapi.js";
+import { ReleaseController } from "../src/release-controller.js";
+import { ReleaseService } from "../src/release-service.js";
+import { InMemoryReleaseRepository } from "../src/in-memory-release-repository.js";
 
 type ProtectedOperation = {
   readonly method: "get" | "post";
@@ -69,9 +72,14 @@ describe("documented route authorization contract", () => {
       new BuildJobService(new InMemoryBuildRecordRepository(audit), applicationRepository),
       identity,
     );
+    const releases = new ReleaseController(
+      new ReleaseService(new InMemoryReleaseRepository(audit), new InMemoryBuildRecordRepository(audit)),
+      identity,
+    );
     const applicationId = "11111111-1111-4111-8111-111111111111";
     const assessmentId = "22222222-2222-4222-8222-222222222222";
     const buildId = "33333333-3333-4333-8333-333333333333";
+    const releaseId = "44444444-4444-4444-8444-444444444444";
 
     operations = [
       {
@@ -127,6 +135,21 @@ describe("documented route authorization contract", () => {
         method: "get",
         path: "/companies/{companyId}/applications/{applicationId}/builds/{buildId}",
         invoke: (headers) => builds.get("company-b", buildId, headers),
+      },
+      {
+        method: "get",
+        path: "/companies/{companyId}/applications/{applicationId}/releases",
+        invoke: (headers) => releases.list("company-b", applicationId, headers),
+      },
+      {
+        method: "post",
+        path: "/companies/{companyId}/applications/{applicationId}/releases",
+        invoke: (headers) => releases.create("company-b", applicationId, headers, { buildId, idempotencyKey: "authorization-release-probe" }),
+      },
+      {
+        method: "get",
+        path: "/companies/{companyId}/applications/{applicationId}/releases/{releaseId}",
+        invoke: (headers) => releases.get("company-b", releaseId, headers),
       },
     ];
 
