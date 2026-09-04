@@ -24,8 +24,10 @@ describe("test release lifecycle", () => {
     const service = new ReleaseService(repository, builds);
     const release = await service.create({ actor, companyId: "company-a", applicationId: build.applicationId, buildId: build.id, idempotencyKey: "release-request", correlationId: "release-correlation" });
     expect(release).toMatchObject({ status: "pending", environment: "test", artifactId: build.result!.artifactId });
-    await new ReleaseWorker("release-worker", repository, { async deploy() { return { deploymentUrl: "https://test.example.invalid" }; }, async rollback() { throw new Error("unused"); }, async verifyHealth() { return true; } }).tick();
+    const activations: string[] = [];
+    await new ReleaseWorker("release-worker", repository, { async deploy() { return { deploymentUrl: "https://test.example.invalid" }; }, async rollback() { throw new Error("unused"); }, async verifyHealth() { return true; } }, { async activate(command) { activations.push(command.releaseId); return { route: { ...command, stablePath: "/apps/company-a/app" } }; }, async current() { return undefined; } }).tick();
     expect(await service.get(actor, "company-a", release.id)).toMatchObject({ status: "healthy", deploymentUrl: "https://test.example.invalid" });
+    expect(activations).toEqual([release.id]);
     expect((await audit.listByCompany("company-a")).map((event) => event.action)).toEqual(["release.queued", "release.healthy"]);
   });
 
@@ -56,11 +58,22 @@ describe("test release lifecycle", () => {
       async rollback(_release: ReleaseRecord, target: ReleaseRecord) { return { deploymentUrl: target.deploymentUrl! }; },
       async verifyHealth(url: string) { return url === "https://healthy.invalid"; },
     };
-    await new ReleaseWorker("worker", repository, engine).tick();
+    const activations: string[] = [];
+    const ingress = { async activate(command: { releaseId: string; companyId: string; applicationId: string; upstreamUrl: string; activatedAt: string }) { activations.push(command.releaseId); return { route: { ...command, stablePath: "/apps/company-a/app" } }; }, async current() { return undefined; } };
+    await new ReleaseWorker("worker", repository, engine, ingress).tick();
     const second = await service.create({ actor, companyId: "company-a", applicationId: build.applicationId, buildId: build.id, idempotencyKey: "rollback-release", correlationId: "two" });
     expect(second.rollbackTargetReleaseId).toBe(first.id);
-    await new ReleaseWorker("worker", repository, engine).tick();
+    await new ReleaseWorker("worker", repository, engine, ingress).tick();
     expect(await service.get(actor, "company-a", second.id)).toMatchObject({ status: "rolled-back", deploymentUrl: "https://healthy.invalid", error: "Deployment health verification failed" });
     expect((await audit.listByCompany("company-a")).at(-1)?.action).toBe("release.rolled_back");
+    expect(activations).toEqual([first.id, first.id]);
+  });
+
+  it("does not activate ingress when direct candidate health verification fails", async () => {
+    const repository = new InMemoryReleaseRepository(new InMemoryAuditRepository()); const service = new ReleaseService(repository, builds);
+    await service.create({ actor, companyId: "company-a", applicationId: build.applicationId, buildId: build.id, idempotencyKey: "unhealthy-route", correlationId: "route" });
+    let activated = false;
+    await new ReleaseWorker("worker", repository, { async deploy() { return { deploymentUrl: "https://bad.invalid" }; }, async rollback() { throw new Error("unused"); }, async verifyHealth() { return false; } }, { async activate(command) { activated = true; return { route: { ...command, stablePath: "/apps/company-a/app" } }; }, async current() { return undefined; } }).tick();
+    expect(activated).toBe(false);
   });
 });

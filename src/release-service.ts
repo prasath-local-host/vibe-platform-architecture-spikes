@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { BuildRecordRepository } from "./build-job-service.js";
 import { requireCompanyAccess, type Actor, type AuditEvent, type ReleaseRecord } from "./domain.js";
+import type { IngressRouter } from "./ingress-router.js";
 
 export interface ReleaseRepository {
   create(release: ReleaseRecord, event: AuditEvent): Promise<ReleaseRecord>;
@@ -60,7 +61,7 @@ export class ReleaseService {
 }
 
 export class ReleaseWorker {
-  constructor(private readonly workerId: string, private readonly releases: ReleaseRepository, private readonly deployment: DeploymentEngine) {}
+  constructor(private readonly workerId: string, private readonly releases: ReleaseRepository, private readonly deployment: DeploymentEngine, private readonly ingress?: IngressRouter) {}
   async tick(): Promise<boolean> {
     const release = await this.releases.claimNext(this.workerId, new Date().toISOString());
     if (!release) return false;
@@ -69,6 +70,7 @@ export class ReleaseWorker {
       const deployed = await this.deployment.deploy(release);
       if (!await this.deployment.verifyHealth(deployed.deploymentUrl)) throw new Error("Deployment health verification failed");
       const now = new Date().toISOString();
+      if (this.ingress) await this.ingress.activate({ companyId: release.companyId, applicationId: release.applicationId, releaseId: release.id, upstreamUrl: deployed.deploymentUrl, activatedAt: now });
       await this.releases.healthy(release.id, deployed.deploymentUrl, now, { ...base, id: randomUUID(), occurredAt: now, action: "release.healthy" });
     } catch (error) {
       let message = error instanceof Error ? error.message : "Unknown release failure";
@@ -79,6 +81,7 @@ export class ReleaseWorker {
             const restored = await this.deployment.rollback(release, target);
             if (!await this.deployment.verifyHealth(restored.deploymentUrl)) throw new Error("Rollback health verification failed");
             const rolledBackAt = new Date().toISOString();
+            if (this.ingress) await this.ingress.activate({ companyId: target.companyId, applicationId: target.applicationId, releaseId: target.id, upstreamUrl: restored.deploymentUrl, activatedAt: rolledBackAt });
             await this.releases.rolledBack(release.id, restored.deploymentUrl, message, rolledBackAt, { ...base, id: randomUUID(), occurredAt: rolledBackAt, action: "release.rolled_back" });
             return true;
           } catch (rollbackError) {

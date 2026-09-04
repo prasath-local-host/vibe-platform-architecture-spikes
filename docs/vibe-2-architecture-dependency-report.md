@@ -22,7 +22,7 @@ Dependencies must point inward:
 | Check | Result |
 | --- | --- |
 | Classified production modules | 47 |
-| Local dependency edges | 129 |
+| Local dependency edges | 131 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -32,8 +32,8 @@ Dependencies must point inward:
 | Layer | Count | Modules |
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
-| application | 10 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `observability.ts`, `release-service.ts` |
-| adapter | 32 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `docker-test-deployment-engine.ts`, `filesystem-artifact-store.ts`, `filesystem-ingress-router.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `ingress-router.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts`, `release-controller.ts`, `release-worker-host.ts` |
+| application | 11 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `ingress-router.ts`, `observability.ts`, `release-service.ts` |
+| adapter | 31 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `docker-test-deployment-engine.ts`, `filesystem-artifact-store.ts`, `filesystem-ingress-router.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts`, `release-controller.ts`, `release-worker-host.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -97,7 +97,7 @@ Dependencies must point inward:
 | `docker-test-deployment-engine.ts` | adapter | `domain.ts` | domain |
 | `docker-test-deployment-engine.ts` | adapter | `release-service.ts` | application |
 | `filesystem-artifact-store.ts` | adapter | `artifact-service.ts` | application |
-| `filesystem-ingress-router.ts` | adapter | `ingress-router.ts` | adapter |
+| `filesystem-ingress-router.ts` | adapter | `ingress-router.ts` | application |
 | `git-source-artifact-repository.ts` | adapter | `build-service.ts` | application |
 | `git-source-artifact-repository.ts` | adapter | `git-source-repository.ts` | adapter |
 | `git-source-repository.ts` | adapter | `assessment-service.ts` | application |
@@ -130,6 +130,7 @@ Dependencies must point inward:
 | `persistence.ts` | composition | `docker-build-pipeline.ts` | adapter |
 | `persistence.ts` | composition | `docker-test-deployment-engine.ts` | adapter |
 | `persistence.ts` | composition | `filesystem-artifact-store.ts` | adapter |
+| `persistence.ts` | composition | `filesystem-ingress-router.ts` | adapter |
 | `persistence.ts` | composition | `git-source-artifact-repository.ts` | adapter |
 | `persistence.ts` | composition | `git-source-repository.ts` | adapter |
 | `persistence.ts` | composition | `identity.ts` | application |
@@ -167,6 +168,7 @@ Dependencies must point inward:
 | `release-controller.ts` | adapter | `release-service.ts` | application |
 | `release-service.ts` | application | `build-job-service.ts` | application |
 | `release-service.ts` | application | `domain.ts` | domain |
+| `release-service.ts` | application | `ingress-router.ts` | application |
 | `release-worker-host.ts` | adapter | `observability.ts` | application |
 | `release-worker-host.ts` | adapter | `release-service.ts` | application |
 

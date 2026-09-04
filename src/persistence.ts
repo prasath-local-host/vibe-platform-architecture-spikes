@@ -36,6 +36,7 @@ import { ReleaseService, ReleaseWorker, UnavailableDeploymentEngine } from "./re
 import { InMemoryReleaseRepository } from "./in-memory-release-repository.js";
 import { PostgresReleaseRepository } from "./postgres-release-repository.js";
 import { DockerTestDeploymentEngine } from "./docker-test-deployment-engine.js";
+import { FilesystemIngressRouter } from "./filesystem-ingress-router.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -107,6 +108,7 @@ export async function createApplicationRuntime(
   const deploymentEngine = releaseConfigurationComplete
     ? new DockerTestDeploymentEngine({ image: process.env.RELEASE_RUNTIME_IMAGE!, network: process.env.RELEASE_NETWORK!, deploymentRoot: process.env.RELEASE_DEPLOYMENT_ROOT!, containerPort: Number(process.env.RELEASE_CONTAINER_PORT ?? 3000), healthPath: process.env.RELEASE_HEALTH_PATH ?? "/health", ...(process.env.RELEASE_COMMAND ? { command: process.env.RELEASE_COMMAND.split(" ").filter(Boolean) } : {}) }, artifactStore!)
     : new UnavailableDeploymentEngine();
+  const ingress = process.env.INGRESS_ROUTE_ROOT ? new FilesystemIngressRouter(process.env.INGRESS_ROUTE_ROOT) : undefined;
   if (!connectionString) {
     const audit = new InMemoryAuditRepository();
     const assessments = new InMemoryAssessmentRepository(audit);
@@ -130,7 +132,7 @@ export async function createApplicationRuntime(
       builds: new BuildJobService(builds, applications, logger),
       buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `local-build-${process.pid}`, builds, buildEngine, logger),
       releases: new ReleaseService(releases, builds),
-      releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `local-release-${process.pid}`, releases, deploymentEngine),
+      releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `local-release-${process.pid}`, releases, deploymentEngine, ingress),
       identity: new IdentityService(
         verifier,
         new InMemoryAuthorizationRepository(
@@ -165,7 +167,7 @@ export async function createApplicationRuntime(
     builds: new BuildJobService(builds, applications, logger),
     buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `build-worker-${process.pid}`, builds, buildEngine, logger),
     releases: new ReleaseService(releases, builds),
-    releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `release-worker-${process.pid}`, releases, deploymentEngine),
+    releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `release-worker-${process.pid}`, releases, deploymentEngine, ingress),
     identity: new IdentityService(
       verifier,
       new PostgresAuthorizationRepository(db),
