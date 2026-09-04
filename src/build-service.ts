@@ -11,6 +11,10 @@ export interface SourceArtifact {
   readonly files: readonly BuildSourceFile[];
 }
 
+export interface SourceArtifactRepository {
+  acquire(repositoryUrl: string, revision: string): Promise<SourceArtifact>;
+}
+
 function fileBytes(content: string | Uint8Array): Uint8Array {
   return typeof content === "string" ? Buffer.from(content, "utf8") : content;
 }

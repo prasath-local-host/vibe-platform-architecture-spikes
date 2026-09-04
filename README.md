@@ -41,6 +41,8 @@ The build-execution adapter accepts an immutable source artifact pinned to a ful
 
 Dependency restoration is a separate adapter and security phase. It requires the package-manager-specific lockfile, a digest-pinned image, credential-free HTTPS registry from an explicit origin allowlist, and a dedicated Docker network that infrastructure must restrict to the approved registry through an egress proxy or firewall. It uses frozen/immutable installation, disables package lifecycle scripts, and applies resource, timeout and output limits. The restored workspace is currently disposable evidence only; full-repository acquisition and a verified handoff into the networkless build phase remain unwired.
 
+The full-source GitHub adapter acquires only an exact 40-character commit SHA, verifies the resulting revision, rejects Git submodules and filesystem symbolic links, and enforces per-file, aggregate-byte and file-count limits before producing the integrity-protected binary-safe artifact. Git metadata and credentials are excluded, and the temporary checkout is always deleted. The adapter is not yet composed into an externally callable workflow; the verified restoration-to-build workspace handoff remains the next boundary.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:
