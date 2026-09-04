@@ -19,6 +19,7 @@
     "architecture:check": "tsx src/generate-architecture-report.ts --check",
     "test": "vitest run",
     "test:e2e-release": "vitest run test/release-routing-e2e.test.ts",
+    "test:e2e-github-release": "vitest run test/github-build-release-e2e.test.ts",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p portal/tsconfig.json --noEmit"
   },
