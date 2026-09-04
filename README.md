@@ -37,6 +37,8 @@ The embedded worker claims rows with PostgreSQL `FOR UPDATE SKIP LOCKED`, proces
 
 Assessments are pinned to an immutable 40-character Git commit SHA and retain the registered repository URL at queue time. Set `GITHUB_SOURCE_ENABLED=true` to enable the bounded GitHub adapter. It accepts credential-free `https://github.com/<owner>/<repository>` URLs only, performs a shallow partial sparse checkout of supported root manifests, verifies the resulting commit, enforces a one-megabyte manifest limit by default, and always deletes its temporary checkout. `GITHUB_TOKEN` is optional for public repositories and is passed to Git through process environment configuration rather than URLs or arguments. `GITHUB_CHECKOUT_TIMEOUT_MS` and `GITHUB_MANIFEST_BYTE_LIMIT` configure the limits. The manifest engine currently detects Node.js, React, Next.js and NestJS and reports missing build/test scripts, lockfiles and Dockerfiles; it does not execute repository code.
 
+The build-execution adapter accepts an explicit bounded file set and runs only `build` or `test` package scripts in a disposable Docker workspace. It requires a digest-pinned image and applies `--network none`, a read-only container root, a non-root UID, dropped Linux capabilities, `no-new-privileges`, PID/CPU/memory limits, a bounded temporary filesystem, timeout and output limits. No customer secret is injected. Dependency restoration and the handoff from a full source artifact are intentionally not wired yet; both require a separate controlled-egress and artifact-integrity decision.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

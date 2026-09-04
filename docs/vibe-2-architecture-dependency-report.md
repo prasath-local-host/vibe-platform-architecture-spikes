@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 24 |
-| Local dependency edges | 62 |
+| Classified production modules | 26 |
+| Local dependency edges | 63 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -32,8 +32,8 @@ Dependencies must point inward:
 | Layer | Count | Modules |
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
-| application | 4 | `application-service.ts`, `assessment-service.ts`, `identity.ts`, `observability.ts` |
-| adapter | 15 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
+| application | 5 | `application-service.ts`, `assessment-service.ts`, `build-service.ts`, `identity.ts`, `observability.ts` |
+| adapter | 16 | `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-repositories.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-repositories.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -64,6 +64,7 @@ Dependencies must point inward:
 | `controller.ts` | adapter | `identity.ts` | application |
 | `controller.ts` | adapter | `openapi.ts` | adapter |
 | `database.ts` | adapter | `observability.ts` | application |
+| `docker-build-executor.ts` | adapter | `build-service.ts` | application |
 | `git-source-repository.ts` | adapter | `assessment-service.ts` | application |
 | `identity.ts` | application | `domain.ts` | domain |
 | `in-memory-assessment-repository.ts` | adapter | `assessment-service.ts` | application |
