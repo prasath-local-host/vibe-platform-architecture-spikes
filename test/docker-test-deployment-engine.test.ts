@@ -40,4 +40,11 @@ describe("Docker test deployment engine", () => {
     await expect(engine.rollback(release, target)).resolves.toEqual({ deploymentUrl: "http://127.0.0.1:31000" });
     expect(calls.map((args) => args.slice(0, 2))).toEqual([["inspect", `vcp-test-${target.id}`], ["start", `vcp-test-${target.id}`], ["rm", "-f"], ["port", `vcp-test-${target.id}`]]);
   });
+
+  it("retries health while a newly started container becomes ready", async () => {
+    let attempts = 0;
+    const engine = new DockerTestDeploymentEngine({ image, network: "vcp-test", deploymentRoot, healthAttempts: 3, healthIntervalMs: 1 }, { async get() { return artifact; }, async put() {}, async deleteExpired() { return 0; } }, async () => "", async () => { attempts += 1; return attempts === 3; });
+    await expect(engine.verifyHealth("http://127.0.0.1:3000")).resolves.toBe(true);
+    expect(attempts).toBe(3);
+  });
 });

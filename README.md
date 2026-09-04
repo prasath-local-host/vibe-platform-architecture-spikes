@@ -57,6 +57,8 @@ Test deployments now have a durable release-record boundary. A release can refer
 
 Stable application routing now has an `IngressRouter` port and a filesystem-backed control adapter. It accepts only credential-free loopback HTTP upstreams, derives a stable tenant/application path, serializes competing switches, replaces route records atomically, and returns the displaced route as rollback evidence. When `INGRESS_ROUTE_ROOT` is configured, the release worker switches the stable route only after direct candidate health verification; rollback verifies the restored container before repointing the route. The optional reconciler converts the complete route set into atomic Traefik file-provider configuration, including deterministic routers, services, entry points, and path-stripping middleware. Enable it with `INGRESS_RECONCILER_ENABLED=true` and `TRAEFIK_DYNAMIC_CONFIG_PATH`.
 
+An opt-in release-routing E2E harness uses only a platform-owned fixture. It creates an isolated Docker network, publishes and deploys a healthy artifact, activates its route, deploys an unhealthy candidate, verifies automatic rollback, generates Traefik configuration, and removes its containers and temporary files. Set `VCP_E2E_RUNTIME_IMAGE` to a digest-pinned Node image and run `pnpm test:e2e-release`. The harness skips when no image is supplied.
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

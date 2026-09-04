@@ -183,7 +183,7 @@ Dependencies must point inward:
 | --- | --- |
 | domain | None |
 | application | `node:async_hooks`, `node:crypto` |
-| adapter | `@nestjs/common`, `@nestjs/swagger`, `fastify`, `jose`, `kysely`, `node:child_process`, `node:crypto`, `node:fs/promises`, `node:os`, `node:path`, `node:util`, `pg`, `zod` |
+| adapter | `@nestjs/common`, `@nestjs/swagger`, `fastify`, `jose`, `kysely`, `node:child_process`, `node:crypto`, `node:fs/promises`, `node:os`, `node:path`, `node:timers/promises`, `node:util`, `pg`, `zod` |
 | composition | `@fastify/helmet`, `@fastify/static`, `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-fastify`, `node:crypto`, `node:path`, `reflect-metadata` |
 
 ## Violations and cycles

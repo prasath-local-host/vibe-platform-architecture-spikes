@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, normalize, relative } from "node:path";
 import { promisify } from "node:util";
+import { setTimeout as delay } from "node:timers/promises";
 import { verifyBuildArtifact, type ArtifactStore } from "./artifact-service.js";
 import type { ReleaseRecord } from "./domain.js";
 import type { DeploymentEngine } from "./release-service.js";
@@ -18,6 +19,8 @@ export interface DockerTestDeploymentConfig {
   readonly command?: readonly string[];
   readonly timeoutMs?: number;
   readonly healthPath?: string;
+  readonly healthAttempts?: number;
+  readonly healthIntervalMs?: number;
 }
 
 function safePath(value: string): string {
@@ -70,7 +73,13 @@ export class DockerTestDeploymentEngine implements DeploymentEngine {
 
   async verifyHealth(deploymentUrl: string): Promise<boolean> {
     const healthUrl = new URL(this.config.healthPath ?? "/health", deploymentUrl).toString();
-    return this.healthFetcher(healthUrl, this.config.timeoutMs ?? 30_000);
+    const attempts = this.config.healthAttempts ?? 10;
+    if (!Number.isInteger(attempts) || attempts < 1 || attempts > 120) throw new Error("Health attempts must be between 1 and 120");
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      if (await this.healthFetcher(healthUrl, this.config.timeoutMs ?? 30_000)) return true;
+      if (attempt < attempts) await delay(this.config.healthIntervalMs ?? 250);
+    }
+    return false;
   }
 
   async rollback(release: ReleaseRecord, target: ReleaseRecord): Promise<{ readonly deploymentUrl: string }> {
