@@ -1,0 +1,122 @@
+name: Demo - build, test and security
+on:
+  workflow_dispatch:
+    inputs:
+      source_revision:
+        description: Exact 40-character commit from the configured demo repository
+        required: true
+        type: string
+  repository_dispatch:
+    types: [demo-source-pushed]
+permissions:
+  contents: read
+concurrency:
+  group: demo-build
+  cancel-in-progress: false
+env:
+  NODE_IMAGE: node@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
+  TRIVY_IMAGE: aquasec/trivy@sha256:bcc376de8d77cfe086a917230e818dc9f8528e3c852f7b1aff648949b6258d1c
+jobs:
+  build:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Validate immutable source
+        env:
+          SOURCE_REVISION: ${{ inputs.source_revision || github.event.client_payload.source_revision }}
+          SOURCE_REPOSITORY: ${{ vars.DEMO_SOURCE_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SOURCE_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          echo "SOURCE_REVISION=$SOURCE_REVISION" >> "$GITHUB_ENV"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: platform
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: ${{ vars.DEMO_SOURCE_REPOSITORY }}
+          ref: ${{ env.SOURCE_REVISION }}
+          token: ${{ secrets.DEMO_SOURCE_READ_TOKEN }}
+          path: application
+          persist-credentials: false
+          submodules: false
+      - name: Check source and prepare trusted build context
+        run: |
+          set -euo pipefail
+          test "$(git -C application rev-parse HEAD)" = "$SOURCE_REVISION"
+          if find application -path 'application/.git' -prune -o -type l -print | grep -q .; then exit 1; fi
+          test ! -f application/.gitmodules
+          cp platform/deploy/demo/context.dockerignore application/.dockerignore
+          mkdir -p candidate reports
+          chmod 777 reports
+          python3 platform/deploy/demo/test_deploy.py
+      - name: Source vulnerability and secret verification
+        run: |
+          set -euo pipefail
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --user 1000:1000 --memory 3g --cpus 2 --tmpfs /tmp:rw,size=2g -v "$PWD/application:/source:ro" -v "$PWD/reports:/reports" "$TRIVY_IMAGE" fs --quiet --config /dev/null --ignorefile /dev/null --cache-dir /tmp/trivy --scanners vuln --include-dev-deps --format cyclonedx --output /reports/source.cdx.json /source
+          node platform/deploy/demo/security-gate.mjs reports/source.cdx.json
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --user 1000:1000 --memory 1g --tmpfs /tmp:rw,size=128m -v "$PWD/application:/source:ro" "$TRIVY_IMAGE" fs --quiet --config /dev/null --ignorefile /dev/null --scanners secret --format json --output /tmp/secrets.json --exit-code 1 /source
+      - name: Build and mandatory application tests
+        run: |
+          set -euo pipefail
+          docker build --build-arg NODE_IMAGE="$NODE_IMAGE" -f platform/deploy/demo/nextjs.Dockerfile -t "vcp-demo:$SOURCE_REVISION" application
+          docker save -o candidate/image.tar "vcp-demo:$SOURCE_REVISION"
+      - name: Runtime image vulnerability verification
+        run: |
+          set -euo pipefail
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges --user 1000:1000 --memory 3g --cpus 2 --tmpfs /tmp:rw,size=2g -v "$PWD/candidate:/input:ro" -v "$PWD/reports:/reports" "$TRIVY_IMAGE" image --quiet --config /dev/null --ignorefile /dev/null --cache-dir /tmp/trivy --scanners vuln --input /input/image.tar --format cyclonedx --output /reports/runtime.cdx.json
+          node platform/deploy/demo/security-gate.mjs reports/runtime.cdx.json
+      - name: Application smoke tests without customer credentials
+        run: |
+          set -euo pipefail
+          trap 'docker rm -f vcp-demo-smoke >/dev/null 2>&1 || true' EXIT
+          docker run -d --name vcp-demo-smoke --read-only --cap-drop ALL --security-opt no-new-privileges --memory 2g --cpus 1 --tmpfs /tmp:rw,size=128m --tmpfs /app/.next/cache:rw,size=64m,uid=1000,gid=1000 -p 127.0.0.1:3199:3000 -e SUPABASE_URL=https://fixture.supabase.co -e SUPABASE_ANON_KEY=sb_publishable_fixture -e APP_URL=http://localhost:3199 -e VCP_SOURCE_REVISION="$SOURCE_REVISION" "vcp-demo:$SOURCE_REVISION"
+          SMOKE_BASE_URL=http://127.0.0.1:3199 EXPECTED_REVISION="$SOURCE_REVISION" node platform/deploy/demo/smoke.mjs
+      - name: Record approved immutable candidate
+        run: |
+          set -euo pipefail
+          export IMAGE_ID="$(docker image inspect "vcp-demo:$SOURCE_REVISION" --format '{{.Id}}')"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          with open('candidate/image.tar', 'rb') as stream:
+              checksum = hashlib.file_digest(stream, 'sha256').hexdigest()
+          manifest = {'source_revision': os.environ['SOURCE_REVISION'], 'image_id': os.environ['IMAGE_ID'], 'tar_sha256': checksum, 'workflow_run_id': os.environ['GITHUB_RUN_ID'], 'security_policy': 'block-high-critical-unknown/v1'}
+          Path('candidate/release.json').write_text(json.dumps(manifest, indent=2))
+          PY
+          echo "Verified candidate for commit $SOURCE_REVISION. Run ID: $GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: demo-candidate
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: security-reports
+          path: reports/*.json
+          if-no-files-found: ignore
+          retention-days: 7
+  auto-stage:
+    needs: build
+    if: vars.DEMO_AUTO_STAGE == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 15
+    environment: demo-stage
+    concurrency:
+      group: demo-deployment
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: demo-candidate
+          path: candidate
+      - run: python3 deploy/demo/deploy.py stage --candidate candidate

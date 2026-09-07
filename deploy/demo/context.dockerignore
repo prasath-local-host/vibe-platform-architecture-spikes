@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+node_modules
+.next
+coverage
+test-results
+*.pem
+*.key
+*.pfx
+*.p12
+*.log
+*.tsbuildinfo
