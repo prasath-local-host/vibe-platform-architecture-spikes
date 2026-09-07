@@ -68,4 +68,4 @@ await app.register(staticFiles, {
   prefix: "/portal/",
   wildcard: false,
 });
-await app.listen({ host: "127.0.0.1", port: Number(process.env.PORT ?? 3000) });
+await app.listen({ host: process.env.LISTEN_HOST ?? "127.0.0.1", port: Number(process.env.PORT ?? 3000) });

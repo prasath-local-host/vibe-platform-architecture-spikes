@@ -1,0 +1,13 @@
+**
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!src
+!src/**
+!test
+!test/**
+!portal
+!portal/**
+portal/node_modules
+portal/dist
