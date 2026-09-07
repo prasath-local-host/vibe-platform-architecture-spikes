@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tarfile
+import tempfile
 import time
 import urllib.request
 
@@ -33,6 +35,79 @@ def require_stage(manifest, receipt):
 def digest(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def archive_identity(path, expected_id=None, expected_tag=None):
+    """Read, never extract, the single image's content-addressed configuration.
+
+    The config digest covers runtime settings and the ordered uncompressed layer
+    digests (rootfs.diff_ids). Docker verifies those layers when loading an image.
+    Engine image IDs can instead identify an OCI manifest or index.
+    """
+    with tarfile.open(path, 'r:') as archive:
+        def read(name):
+            matches = [member for member in archive.getmembers() if member.name == name]
+            if len(matches) != 1 or not matches[0].isfile() or matches[0].size > 10 * 1024 * 1024:
+                raise ValueError('Invalid or ambiguous image archive metadata')
+            with archive.extractfile(matches[0]) as stream:
+                return stream.read()
+
+        entries = json.loads(read('manifest.json'))
+        if not isinstance(entries, list) or len(entries) != 1:
+            raise ValueError('Expected exactly one application image in archive')
+        entry = entries[0]
+        if expected_tag is not None and entry.get('RepoTags') != [expected_tag]:
+            raise ValueError('Archive does not contain the approved source tag')
+        config_bytes = read(entry['Config'])
+        config_id = 'sha256:' + hashlib.sha256(config_bytes).hexdigest()
+        config = json.loads(config_bytes)
+        layers = config.get('rootfs', {}).get('diff_ids', [])
+        if (config.get('os') != 'linux' or config.get('architecture') != 'amd64'
+                or config.get('rootfs', {}).get('type') != 'layers' or not layers
+                or not all(isinstance(item, str) and re.fullmatch(r'sha256:[0-9a-f]{64}', item) for item in layers)
+                or len(entry.get('Layers', [])) != len(layers)):
+            raise ValueError('Invalid application platform or layer configuration')
+
+        def references_config(identifier, depth=0):
+            if identifier == config_id:
+                return True
+            if depth > 4 or not re.fullmatch(r'sha256:[0-9a-f]{64}', identifier):
+                return False
+            raw = read('blobs/sha256/' + identifier.removeprefix('sha256:'))
+            if 'sha256:' + hashlib.sha256(raw).hexdigest() != identifier:
+                raise ValueError('Image descriptor digest mismatch')
+            descriptor = json.loads(raw)
+            if descriptor.get('config', {}).get('digest') == config_id:
+                return True
+            children = descriptor.get('manifests', [])
+            if not isinstance(children, list) or len(children) > 16:
+                raise ValueError('Invalid image index')
+            return any(references_config(child.get('digest', ''), depth + 1) for child in children)
+
+        if expected_id is not None and not references_config(expected_id):
+            raise ValueError('Archive configuration differs from approved image')
+        return config_id
+
+
+def load_verified_image(image_tar, manifest):
+    # Pin the input archive before asking Docker to load anything.
+    if digest(image_tar) != manifest['tar_sha256']:
+        raise ValueError('Artifact digest mismatch')
+    tag = 'vcp-demo:' + manifest['source_revision']
+    approved_config = archive_identity(image_tar, manifest['image_id'], tag)
+    docker('load', '--input', str(image_tar))
+    # Resolve the tag once, then verify and run only this immutable local ID.
+    local_id = docker('image', 'inspect', tag, '--format', '{{.Id}}')
+    if not re.fullmatch(r'sha256:[0-9a-f]{64}', local_id):
+        raise ValueError('Invalid loaded image ID')
+    # Re-export by ID to compare the exact config bytes, including layer digests.
+    # Do not compare engine-specific IDs or trust a mutable tag alone.
+    with tempfile.TemporaryDirectory(prefix='image-verification-', dir=image_tar.parent) as temp:
+        exported = Path(temp) / 'loaded.tar'
+        docker('save', '--output', str(exported), local_id)
+        if archive_identity(exported) != approved_config:
+            raise ValueError('Loaded image configuration or layers differ from approved image')
+    return local_id
 
 
 def check_health(port, revision):
@@ -102,9 +177,7 @@ def deploy(environment, candidate, root):
         previous = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
         if previous:
             inspect_owned(previous['container'], environment)
-        docker('load', '--input', str(image_tar))
-        if docker('image', 'inspect', manifest['image_id'], '--format', '{{.Id}}') != manifest['image_id']:
-            raise ValueError('Loaded image differs from approved image')
+        local_image_id = load_verified_image(image_tar, manifest)
         name = f"vcp-demo-{environment}-{manifest['workflow_run_id']}-{time.time_ns()}"
         network = f'vcp-demo-{environment}'
         try:
@@ -122,7 +195,7 @@ def deploy(environment, candidate, root):
                    '--tmpfs', '/app/.next/cache:rw,noexec,nosuid,size=64m,uid=1000,gid=1000',
                    '--network', network, '--env-file', str(secrets),
                    '--env', 'VCP_SOURCE_REVISION=' + manifest['source_revision'],
-                   '-p', binding, manifest['image_id'])
+                   '-p', binding, local_image_id)
 
         changed = False
         try:
@@ -140,11 +213,12 @@ def deploy(environment, candidate, root):
             start(f'127.0.0.1:{port}:3000')
             check_health(port, manifest['source_revision'])
             receipt = {'status': 'healthy', 'manifest': manifest, 'container': name,
+                       'local_image_id': local_image_id,
                        'previous_container': previous['container'] if previous else None,
                        'deployed_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
             atomic_json(state / f'{name}.json', receipt)
             atomic_json(receipt_path, receipt)
-            print(f'{environment}: healthy, revision {manifest["source_revision"]}, image {manifest["image_id"]}')
+            print(f'{environment}: healthy, revision {manifest["source_revision"]}, local image {local_image_id}')
         except Exception:
             try:
                 inspect_owned(name, environment)
