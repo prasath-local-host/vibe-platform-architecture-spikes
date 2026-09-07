@@ -64,6 +64,8 @@ jobs:
           set -euo pipefail
           docker build --build-arg NODE_IMAGE="$NODE_IMAGE" -f platform/deploy/demo/nextjs.Dockerfile -t "vcp-demo:$SOURCE_REVISION" application
           docker save -o candidate/image.tar "vcp-demo:$SOURCE_REVISION"
+          # Allow the non-root scanner to read the archive through its read-only mount.
+          chmod 0644 candidate/image.tar
       - name: Runtime image vulnerability verification
         run: |
           set -euo pipefail
