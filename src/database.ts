@@ -94,6 +94,7 @@ export interface AssessmentTable {
 }
 
 export interface Database {
+  demo_pipeline_runs: { id: string; company_id: string; application_id: string; idempotency_key: string; created_at: string; active: boolean; record: unknown };
   companies: CompanyTable;
   company_memberships: CompanyMembershipTable;
   platform_roles: PlatformRoleTable;

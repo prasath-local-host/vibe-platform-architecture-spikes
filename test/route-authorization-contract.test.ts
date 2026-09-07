@@ -1,4 +1,6 @@
 import { HttpException } from "@nestjs/common";
+import { DemoPipelineController } from "../src/demo-pipeline-controller.js";
+import { DemoPipelineService } from "../src/demo-pipeline.js";
 import { NestFactory } from "@nestjs/core";
 import {
   FastifyAdapter,
@@ -64,6 +66,7 @@ describe("documented route authorization contract", () => {
       ["otp"],
     );
     const applicationRepository = new InMemoryApplicationRepository(audit);
+    const pipeline = new DemoPipelineController(new DemoPipelineService(applicationRepository), identity);
     const applications = new AppController(
       new ApplicationService(applicationRepository, audit),
       identity,
@@ -87,6 +90,9 @@ describe("documented route authorization contract", () => {
     const releaseId = "44444444-4444-4444-8444-444444444444";
 
     operations = [
+      { method: "get", path: "/companies/{companyId}/applications/{applicationId}/demo-pipeline", invoke: headers => pipeline.list("company-b", applicationId, headers) },
+      { method: "get", path: "/companies/{companyId}/applications/{applicationId}/demo-pipeline/source", invoke: headers => pipeline.latest("company-b", applicationId, headers) },
+      { method: "post", path: "/companies/{companyId}/applications/{applicationId}/demo-pipeline", invoke: headers => pipeline.dispatch("company-b", applicationId, headers, {}) },
       { method: "get", path: "/companies/{companyId}/applications/{applicationId}/security-scans", invoke: (headers) => scans.list("company-b", applicationId, headers) },
       { method: "get", path: "/companies/{companyId}/applications/{applicationId}/security-scans/{scanId}", invoke: (headers) => scans.get("company-b", applicationId, buildId, headers) },
       {

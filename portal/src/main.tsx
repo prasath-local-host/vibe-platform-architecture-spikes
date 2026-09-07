@@ -4,6 +4,7 @@ import { portalApi, ApiError, type Application, type Assessment } from "./api";
 import { MemorySession, type PortalRole, type PortalSession } from "./auth-session";
 import "./styles.css";
 import { SecurityScans } from "./security-scans";
+import { DemoPipeline } from "./demo-pipeline";
 
 const authSession = new MemorySession();
 
@@ -122,6 +123,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
         </div>
         <div className="card detail-card">{selected ? <><div className="section-title"><div><span className="eyebrow blue">APPLICATION</span><h2>{selected.name}</h2></div><span className="badge">{companyId}</span></div><dl><div><dt>Repository</dt><dd>{selected.repositoryUrl}</dd></div><div><dt>Registered</dt><dd>{new Date(selected.createdAt).toLocaleString()}</dd></div></dl><label>Commit SHA<input value={sourceRevision} onChange={(event) => setSourceRevision(event.target.value)} pattern="[0-9a-fA-F]{40}" maxLength={40} required placeholder="40-character Git commit SHA" /></label><button className="primary full" disabled={!/^[0-9a-f]{40}$/i.test(sourceRevision.trim())} onClick={() => void assess(selected)}>Run assessment</button><h3>Assessment history</h3>{assessments.length ? assessments.map((assessment) => <div className="assessment" key={assessment.id}><span className={`status ${assessment.status}`}>{assessment.status}</span><small>{assessment.sourceRevision.slice(0, 12)} · {assessment.correlationId}</small></div>) : <p className="empty">No assessments yet.</p>}</> : <div className="empty-state"><div>↗</div><h2>Select an application</h2><p>Open an application to view its deployment assessment history.</p></div>}</div>
       </section>
+      {selected && <DemoPipeline key={`pipeline:${companyId}:${selected.id}`} companyId={companyId} applicationId={selected.id} />}
       {selected && <SecurityScans key={`${companyId}:${selected.id}`} companyId={companyId} applicationId={selected.id} />}
       {showRegister && <div className="modal-backdrop"><form className="card modal" onSubmit={register}><div className="section-title"><div><span className="eyebrow blue">NEW APPLICATION</span><h2>Connect a repository</h2></div><button type="button" onClick={() => setShowRegister(false)}>×</button></div><label>Application name<input name="name" required placeholder="Customer evaluation portal" /></label><label>Repository URL<input name="repositoryUrl" type="url" required placeholder="https://github.com/company/application" /></label>{registrationError && <div className="error" role="alert">{registrationError}{stepUpRequired && <button type="button" onClick={portalApi.reauthenticate}>Verify identity</button>}</div>}<div className="modal-actions"><button type="button" onClick={() => setShowRegister(false)}>Cancel</button><button className="primary" type="submit">Register application</button></div></form></div>}
     </main>

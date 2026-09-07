@@ -1,7 +1,12 @@
 name: Demo - deploy Stage or promote Prod
+run-name: ${{ inputs.portal_request_id && format('VCP {0} {1}', inputs.environment, inputs.portal_request_id) || format('Demo deploy {0} build {1}', inputs.environment, inputs.build_run_id) }}
 on:
   workflow_dispatch:
     inputs:
+      portal_request_id:
+        description: Platform request correlation ID (leave empty for GitHub UI)
+        type: string
+        required: false
       build_run_id:
         description: Successful Demo build workflow run ID
         type: string

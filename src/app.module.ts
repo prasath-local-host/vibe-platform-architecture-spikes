@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { DemoPipelineController } from "./demo-pipeline-controller.js";
+import { DemoPipelineService } from "./demo-pipeline.js";
 import { ScanEvidenceController } from "./scan-evidence-controller.js";
 import { ScanEvidenceService } from "./scan-evidence-service.js";
 import { AppController } from "./controller.js";
@@ -22,8 +24,9 @@ import {
 const APPLICATION_RUNTIME = Symbol("APPLICATION_RUNTIME");
 
 @Module({
-  controllers: [AppController, AssessmentController, BuildController, ReleaseController, ScanEvidenceController],
+  controllers: [AppController, AssessmentController, BuildController, ReleaseController, ScanEvidenceController, DemoPipelineController],
   providers: [
+    { provide: DemoPipelineService, inject: [APPLICATION_RUNTIME], useFactory: (runtime: ApplicationRuntime) => runtime.demoPipeline },
     { provide: ScanEvidenceService, inject: [APPLICATION_RUNTIME], useFactory: (runtime: ApplicationRuntime) => runtime.scanEvidence },
     {
       provide: APPLICATION_RUNTIME,

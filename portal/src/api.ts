@@ -61,6 +61,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const portalApi = {
+  pipeline: (companyId: string, applicationId: string) => request<PipelineSnapshot>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/demo-pipeline`),
+  pipelineSource: (companyId: string, applicationId: string) => request<{ sourceRevision: string }>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/demo-pipeline/source`),
+  pipelineDispatch: (companyId: string, applicationId: string, command: { kind: "build" | "stage" | "prod"; sourceRevision?: string; buildId?: string; idempotencyKey: string }) => request<PipelineRun>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/demo-pipeline`, { method: "POST", body: JSON.stringify(command) }),
   securityScans: (companyId: string, applicationId: string) => request<SecurityScan[]>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/security-scans`),
   securityScan: (companyId: string, applicationId: string, scanId: string) => request<SecurityScanDetail>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/security-scans/${encodeURIComponent(scanId)}`),
   session: async () => {
@@ -87,3 +90,9 @@ export const portalApi = {
       body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), sourceRevision }),
     }),
 };
+
+export interface PipelineRun {
+  id: string; kind: "build" | "stage" | "prod"; sourceRevision: string; buildId: string | null;
+  runId: string | null; status: string; conclusion: string | null; createdAt: string; url: string | null;
+}
+export interface PipelineSnapshot { configured: boolean; runs: PipelineRun[] }

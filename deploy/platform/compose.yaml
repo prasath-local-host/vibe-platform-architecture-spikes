@@ -79,6 +79,9 @@ services:
     tmpfs: ["/tmp:rw,noexec,nosuid,size=64m,uid=1000,gid=1000"]
     mem_limit: 1g
     pids_limit: 256
+    env_file:
+      - path: ./private/github.env
+        required: false
     environment:
       NODE_ENV: development
       LISTEN_HOST: 0.0.0.0

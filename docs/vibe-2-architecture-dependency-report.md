@@ -21,8 +21,8 @@ Dependencies must point inward:
 
 | Check | Result |
 | --- | --- |
-| Classified production modules | 56 |
-| Local dependency edges | 158 |
+| Classified production modules | 58 |
+| Local dependency edges | 168 |
 | Outward dependency violations | 0 |
 | Local import cycles | 0 |
 | Overall | PASS |
@@ -33,7 +33,7 @@ Dependencies must point inward:
 | --- | ---: | --- |
 | domain | 1 | `domain.ts` |
 | application | 13 | `application-service.ts`, `artifact-service.ts`, `assessment-service.ts`, `build-job-service.ts`, `build-pipeline.ts`, `build-service.ts`, `dependency-restoration.ts`, `identity.ts`, `ingress-router.ts`, `observability.ts`, `release-service.ts`, `scan-evidence-service.ts`, `supply-chain-security.ts` |
-| adapter | 38 | `artifact-security.ts`, `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `docker-test-deployment-engine.ts`, `filesystem-artifact-store.ts`, `filesystem-ingress-router.ts`, `filesystem-scan-evidence.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `ingress-reconciler-host.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts`, `release-controller.ts`, `release-worker-host.ts`, `scan-evidence-controller.ts`, `scanner-cache.ts`, `traefik-file-reconciler.ts`, `trivy-supply-chain-scanner.ts` |
+| adapter | 40 | `artifact-security.ts`, `assessment-controller.ts`, `assessment-worker-host.ts`, `browser-session.ts`, `build-controller.ts`, `build-job-engine.ts`, `build-worker-host.ts`, `controller.ts`, `database.ts`, `demo-pipeline-controller.ts`, `demo-pipeline.ts`, `docker-build-executor.ts`, `docker-build-pipeline.ts`, `docker-dependency-restorer.ts`, `docker-test-deployment-engine.ts`, `filesystem-artifact-store.ts`, `filesystem-ingress-router.ts`, `filesystem-scan-evidence.ts`, `git-source-artifact-repository.ts`, `git-source-repository.ts`, `in-memory-assessment-repository.ts`, `in-memory-build-record-repository.ts`, `in-memory-release-repository.ts`, `in-memory-repositories.ts`, `ingress-reconciler-host.ts`, `manifest-assessment-engine.ts`, `migrations.ts`, `oidc-access-token-verifier.ts`, `openapi.ts`, `postgres-assessment-repository.ts`, `postgres-authorization-repository.ts`, `postgres-build-record-repository.ts`, `postgres-release-repository.ts`, `postgres-repositories.ts`, `release-controller.ts`, `release-worker-host.ts`, `scan-evidence-controller.ts`, `scanner-cache.ts`, `traefik-file-reconciler.ts`, `trivy-supply-chain-scanner.ts` |
 | composition | 4 | `app.module.ts`, `main.ts`, `migrate.ts`, `persistence.ts` |
 
 ## Local dependency evidence
@@ -48,6 +48,8 @@ Dependencies must point inward:
 | `app.module.ts` | composition | `build-job-service.ts` | application |
 | `app.module.ts` | composition | `build-worker-host.ts` | adapter |
 | `app.module.ts` | composition | `controller.ts` | adapter |
+| `app.module.ts` | composition | `demo-pipeline-controller.ts` | adapter |
+| `app.module.ts` | composition | `demo-pipeline.ts` | adapter |
 | `app.module.ts` | composition | `identity.ts` | application |
 | `app.module.ts` | composition | `ingress-reconciler-host.ts` | adapter |
 | `app.module.ts` | composition | `persistence.ts` | composition |
@@ -93,6 +95,13 @@ Dependencies must point inward:
 | `controller.ts` | adapter | `identity.ts` | application |
 | `controller.ts` | adapter | `openapi.ts` | adapter |
 | `database.ts` | adapter | `observability.ts` | application |
+| `demo-pipeline-controller.ts` | adapter | `demo-pipeline.ts` | adapter |
+| `demo-pipeline-controller.ts` | adapter | `domain.ts` | domain |
+| `demo-pipeline-controller.ts` | adapter | `identity.ts` | application |
+| `demo-pipeline-controller.ts` | adapter | `openapi.ts` | adapter |
+| `demo-pipeline.ts` | adapter | `application-service.ts` | application |
+| `demo-pipeline.ts` | adapter | `database.ts` | adapter |
+| `demo-pipeline.ts` | adapter | `domain.ts` | domain |
 | `dependency-restoration.ts` | application | `build-service.ts` | application |
 | `docker-build-executor.ts` | adapter | `build-service.ts` | application |
 | `docker-build-pipeline.ts` | adapter | `build-pipeline.ts` | application |
@@ -138,6 +147,7 @@ Dependencies must point inward:
 | `persistence.ts` | composition | `build-job-engine.ts` | adapter |
 | `persistence.ts` | composition | `build-job-service.ts` | application |
 | `persistence.ts` | composition | `database.ts` | adapter |
+| `persistence.ts` | composition | `demo-pipeline.ts` | adapter |
 | `persistence.ts` | composition | `docker-build-pipeline.ts` | adapter |
 | `persistence.ts` | composition | `docker-test-deployment-engine.ts` | adapter |
 | `persistence.ts` | composition | `filesystem-artifact-store.ts` | adapter |

@@ -1,7 +1,16 @@
 name: Demo - build, test and security
+run-name: ${{ inputs.portal_request_id && format('VCP build {0}', inputs.portal_request_id) || 'Demo build, test and security' }}
 on:
   workflow_dispatch:
     inputs:
+      portal_request_id:
+        description: Platform request correlation ID (leave empty for GitHub UI)
+        type: string
+        required: false
+      expected_source_repository:
+        description: Platform source binding (leave empty for GitHub UI)
+        type: string
+        required: false
       source_revision:
         description: Exact 40-character commit from the configured demo repository
         required: true
@@ -26,10 +35,12 @@ jobs:
         env:
           SOURCE_REVISION: ${{ inputs.source_revision || github.event.client_payload.source_revision }}
           SOURCE_REPOSITORY: ${{ vars.DEMO_SOURCE_REPOSITORY }}
+          EXPECTED_SOURCE_REPOSITORY: ${{ inputs.expected_source_repository }}
         run: |
           set -euo pipefail
           [[ "$SOURCE_REVISION" =~ ^[0-9a-f]{40}$ ]]
           [[ "$SOURCE_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ -z "$EXPECTED_SOURCE_REPOSITORY" || "$EXPECTED_SOURCE_REPOSITORY" == "$SOURCE_REPOSITORY" ]]
           echo "SOURCE_REVISION=$SOURCE_REVISION" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -106,7 +117,7 @@ jobs:
           retention-days: 7
   auto-stage:
     needs: build
-    if: vars.DEMO_AUTO_STAGE == 'true'
+    if: vars.DEMO_AUTO_STAGE == 'true' && inputs.portal_request_id == ''
     runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 15
     environment: demo-stage

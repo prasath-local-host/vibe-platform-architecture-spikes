@@ -1139,6 +1139,297 @@
           "security-scans"
         ]
       }
+    },
+    "/companies/{companyId}/applications/{applicationId}/demo-pipeline": {
+      "get": {
+        "operationId": "DemoPipelineController_list",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required; dispatch also requires action-level step-up authentication.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No company access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Application or bound build not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Promotion gate, provenance, active request or idempotency conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Pipeline not configured, identity unavailable, or GitHub unavailable. Dispatch is never automatically retried.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "demo-pipeline"
+        ]
+      },
+      "post": {
+        "operationId": "DemoPipelineController_dispatch",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "schema": {}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineRunResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid action-specific request body.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required; dispatch also requires action-level step-up authentication.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No company access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Application or bound build not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Promotion gate, provenance, active request or idempotency conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Pipeline not configured, identity unavailable, or GitHub unavailable. Dispatch is never automatically retried.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "demo-pipeline"
+        ]
+      }
+    },
+    "/companies/{companyId}/applications/{applicationId}/demo-pipeline/source": {
+      "get": {
+        "operationId": "DemoPipelineController_latest",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineSourceResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Sign-in required; dispatch also requires action-level step-up authentication.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No company access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Application or bound build not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Promotion gate, provenance, active request or idempotency conflict.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Pipeline not configured, identity unavailable, or GitHub unavailable. Dispatch is never automatically retried.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "demo-pipeline"
+        ]
+      }
     }
   },
   "info": {
@@ -1879,6 +2170,138 @@
           "componentCount",
           "findings",
           "report"
+        ]
+      },
+      "PipelineRunResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorSubject": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "build",
+              "stage",
+              "prod"
+            ]
+          },
+          "sourceRevision": {
+            "type": "string"
+          },
+          "buildId": {
+            "type": "string",
+            "nullable": true
+          },
+          "idempotencyKey": {
+            "type": "string"
+          },
+          "runId": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "description": "GitHub status, or dispatching while the outcome is being reconciled"
+          },
+          "conclusion": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "applicationId",
+          "actorSubject",
+          "kind",
+          "sourceRevision",
+          "buildId",
+          "idempotencyKey",
+          "runId",
+          "status",
+          "conclusion",
+          "createdAt"
+        ]
+      },
+      "PipelineListResponse": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineRunResponse"
+            }
+          }
+        },
+        "required": [
+          "configured",
+          "runs"
+        ]
+      },
+      "PipelineSourceResponse": {
+        "type": "object",
+        "properties": {
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          }
+        },
+        "required": [
+          "sourceRevision"
+        ]
+      },
+      "PipelineRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "build",
+              "stage",
+              "prod"
+            ]
+          },
+          "sourceRevision": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$",
+            "description": "Required for build; immutable commit from the bound source repository"
+          },
+          "buildId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Required for Stage/Prod; platform build record ID, not an arbitrary GitHub run ID"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "kind",
+          "idempotencyKey"
         ]
       }
     }

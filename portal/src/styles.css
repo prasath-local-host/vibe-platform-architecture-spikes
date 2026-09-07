@@ -10,3 +10,14 @@
 .scan-findings { list-style: none; padding: 0; max-height: 300px; overflow: auto; }
 .scan-findings li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .scan-layout { grid-template-columns: 1fr; } }
+/* Delivery controls reuse the portal's blue buttons and card foundations. */
+.pipeline-card { margin-top: 24px; padding: 28px; }
+.pipeline-card label { display: grid; gap: 8px; margin: 16px 0; }
+.pipeline-note { color: #52647c; max-width: 85ch; }
+.pipeline-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 24px; }
+.pipeline-card button:not(.primary) { border: 1px solid #cbd7e6; background: #fff; color: #40516a; padding: .8rem 1rem; border-radius: 9px; }
+.pipeline-history { display: grid; gap: 12px; }
+.pipeline-history article { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 16px; border: 1px solid #d9e2ef; border-radius: 12px; }
+.pipeline-history a { color: #1260c4; margin-left: auto; }
+.pipeline-confirm { padding: 18px; border: 1px solid #9dbdf0; border-radius: 12px; background: #f0f6ff; }
+button:disabled { cursor: not-allowed; opacity: .5; }

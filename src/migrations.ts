@@ -295,6 +295,21 @@ class ControlPlaneMigrationProvider implements MigrationProvider {
       "004_immutable_assessment_source": immutableAssessmentSourceSchema,
       "005_asynchronous_builds": asynchronousBuildSchema,
       "006_test_releases": testReleaseSchema,
+      "007_demo_pipeline_runs": {
+        async up(db) {
+          await db.schema.createTable("demo_pipeline_runs")
+            .addColumn("id", "uuid", c => c.primaryKey())
+            .addColumn("company_id", "varchar(100)", c => c.notNull().references("companies.id"))
+            .addColumn("application_id", "uuid", c => c.notNull().references("applications.id"))
+            .addColumn("idempotency_key", "varchar(100)", c => c.notNull())
+            .addColumn("created_at", "timestamptz", c => c.notNull())
+            .addColumn("active", "boolean", c => c.notNull())
+            .addColumn("record", "jsonb", c => c.notNull())
+            .addUniqueConstraint("demo_pipeline_idempotency", ["company_id", "application_id", "idempotency_key"]).execute();
+          await sql`create unique index demo_pipeline_one_active on demo_pipeline_runs (application_id) where active`.execute(db);
+        },
+        async down(db) { await db.schema.dropTable("demo_pipeline_runs").execute(); },
+      },
     };
   }
 }

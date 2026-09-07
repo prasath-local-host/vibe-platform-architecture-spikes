@@ -1,4 +1,5 @@
 import { ApplicationService } from "./application-service.js";
+import { DemoPipelineService, GitHubPipelineGateway, PostgresPipelineStore, pipelineConfigFromEnvironment } from "./demo-pipeline.js";
 import { AssessmentService, AssessmentWorker } from "./assessment-service.js";
 import { createDatabase } from "./database.js";
 import {
@@ -45,6 +46,7 @@ import { ScanEvidenceService } from "./scan-evidence-service.js";
 import { FilesystemScanEvidenceReader } from "./filesystem-scan-evidence.js";
 
 export interface ApplicationRuntime {
+  readonly demoPipeline: DemoPipelineService;
   readonly scanEvidence: ScanEvidenceService;
   readonly applications: ApplicationService;
   readonly assessments: AssessmentService;
@@ -61,6 +63,8 @@ export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
   const logger = new StructuredLogger();
+  const pipelineConfig = pipelineConfigFromEnvironment();
+  if (pipelineConfig && !connectionString) throw new Error("Demo pipeline requires PostgreSQL persistence");
   const supplyChainRequired = process.env.SUPPLY_CHAIN_SCANNING_ENABLED === "true" || process.env.NODE_ENV === "production";
   if (supplyChainRequired && (!process.env.TRIVY_SCANNER_IMAGE || !process.env.TRIVY_SCANNER_NETWORK || !process.env.SUPPLY_CHAIN_EVIDENCE_ROOT)) {
     throw new Error("Supply-chain scanning requires a pinned Trivy image, scanner network, and evidence root");
@@ -138,6 +142,7 @@ export async function createApplicationRuntime(
     const releases = new InMemoryReleaseRepository(audit);
     const engine = new ManifestAssessmentEngine(sourceRepository);
     return {
+      demoPipeline: new DemoPipelineService(applications),
       scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
       applications: new ApplicationService(
         applications,
@@ -175,6 +180,7 @@ export async function createApplicationRuntime(
   const releases = new PostgresReleaseRepository(db);
   const engine = new ManifestAssessmentEngine(sourceRepository);
   return {
+    demoPipeline: new DemoPipelineService(applications, new PostgresPipelineStore(db), pipelineConfig, pipelineConfig ? new GitHubPipelineGateway(pipelineConfig) : undefined),
     scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
     applications: new ApplicationService(
       applications,
