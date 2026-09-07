@@ -33,6 +33,10 @@ export interface SecurityScanDetail extends SecurityScan { readonly report: Reco
 
 export interface BrowserIdentity { readonly subject: string; readonly displayName: string; readonly csrfToken: string }
 
+export class ApiError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -44,7 +48,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
-  if (!response.ok) throw new Error((await response.text()) || `Request failed (${response.status})`);
+  if (!response.ok) {
+    const body = await response.text();
+    let message = `Request failed (${response.status})`;
+    try {
+      const parsed: unknown = JSON.parse(body);
+      if (parsed && typeof parsed === "object" && "message" in parsed && typeof parsed.message === "string") message = parsed.message;
+    } catch { /* Do not display arbitrary proxy HTML as an API error. */ }
+    throw new ApiError(response.status, message);
+  }
   return response.json() as Promise<T>;
 }
 
@@ -60,6 +72,7 @@ export const portalApi = {
     return value;
   },
   login: () => { window.location.assign("/auth/login"); },
+  reauthenticate: () => { window.location.assign("/auth/login?reauthenticate=true"); },
   logout: () => request<{ logoutUrl: string }>("/auth/logout", { method: "POST" }),
   applications: (companyId: string) => request<Application[]>(`/companies/${encodeURIComponent(companyId)}/applications`),
   registerApplication: (companyId: string, name: string, repositoryUrl: string) =>

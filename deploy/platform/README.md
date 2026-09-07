@@ -58,6 +58,7 @@ After all services are healthy, bootstrap ONLY the new platform database:
 
 ```bash
 cd /mnt/data/vcp-platform
+python3 source/deploy/platform/configure_otp.py
 docker compose exec -T platform-db psql -X -U vcp -d vcp -v ON_ERROR_STOP=1 < source/deploy/platform/bootstrap.sql
 docker compose ps
 curl -fsS -o /dev/null -w 'Portal HTTP %{http_code}\n' http://127.0.0.1:3200/portal/
@@ -86,6 +87,30 @@ Sensitive actions require a signed `otp` authentication method; fail closed if
 the provider does not supply it. Do not weaken the policy to make a demo work.
 Password reset/email delivery is disabled until a mail service is configured.
 
+### Repair an existing installation's OTP reference
+
+Run `python3 source/deploy/platform/configure_otp.py` on Ubuntu after checking out
+the reviewed update. This adds the AMR reference only to the enabled OTP Form in
+the existing realm browser flow. It saves the prior configuration privately,
+verifies the client mapper, reads back the result, and is idempotent. Ambiguous
+flows, client flow overrides or custom OTP configs require operator review and
+are not overwritten. Users, passwords, enrollments and flow requirements remain
+unchanged. It uses the private identity-admin credential, never prints tokens,
+and does not enable direct password grants for the portal client.
+
+The reference lifetime is 300 seconds; already-issued access tokens remain valid
+until their ordinary expiration. A fresh login with an actual OTP challenge is
+needed after initial enrollment or an old session. Use the registration dialog's
+**Verify identity** button (fresh PKCE login with `prompt=login` and `max_age=0`),
+then retry registration under `company-a`. Registration is never auto-replayed.
+No static `otp` token claim or relaxed platform policy is used.
+
+For the updated portal image, set `PLATFORM_REVISION` in the root `.env` to the
+reviewed commit, build `platform`, then run `docker compose up -d --no-deps --wait
+--wait-timeout 120 platform`. Do not rerun preparation or database bootstrap on
+an existing installation. This recreates only the portal, so browser sessions
+must sign in again; PostgreSQL and Keycloak storage remain intact.
+
 ## Recovery
 
 Use `docker compose logs --tail 80 platform identity` locally; redact sensitive
@@ -112,3 +137,12 @@ or production-ready installation.
   ports, synthetic auth disabled, token introspection and OTP policy enabled.
 
 These checks are not an Ubuntu deployment result or a production security audit.
+
+OTP repair follow-up (2026-09-07): updated platform suite 143 passed, 17 skipped;
+four setup/repair tests passed. An isolated real Keycloak/BFF rehearsal verified
+that enrollment without the reference is denied, the repair is idempotent, old
+tokens remain denied, an incorrect OTP is rejected, and fresh password + OTP
+authentication permits application registration (HTTP 201). No production user
+credentials or Ubuntu MFA registrations were used in that test. The portal now
+defaults to the bootstrap company `company-a` and labels unmeasured health as
+`Not monitored` instead of claiming workers are online.

@@ -37,4 +37,17 @@ describe("portal browser credential boundary", () => {
     expect(source).toContain("providerSessionIsActive(session)");
     expect(source).toContain('sessions.delete(id!)');
   });
+
+  it("offers fresh authentication and does not claim unmeasured worker health", async () => {
+    const portal = await readFile(new URL("../portal/src/main.tsx", import.meta.url), "utf8");
+    const api = await readFile(new URL("../portal/src/api.ts", import.meta.url), "utf8");
+    const bff = await readFile(new URL("../src/browser-session.ts", import.meta.url), "utf8");
+    expect(portal).not.toContain('demo-company');
+    expect(portal).not.toContain('PostgreSQL and worker online');
+    expect(portal).toContain('Not monitored');
+    expect(portal).toContain('Verify identity');
+    expect(api).toContain('/auth/login?reauthenticate=true');
+    expect(bff).toContain('url.searchParams.set("prompt", "login")');
+    expect(bff).toContain('url.searchParams.set("max_age", "0")');
+  });
 });

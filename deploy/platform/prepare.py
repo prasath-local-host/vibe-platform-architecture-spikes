@@ -58,6 +58,7 @@ def prepare(root, source):
     (private / 'initial-credentials.json').chmod(0o600)
     shutil.copyfile(source / 'deploy/platform/compose.yaml', root / 'compose.yaml')
     print('Prepared SSH-only platform. Secrets stay in private local files. No services started.')
+    print('After startup, run source/deploy/platform/configure_otp.py before testing sensitive actions.')
 
 
 if __name__ == '__main__':

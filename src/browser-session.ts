@@ -97,7 +97,7 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
     }
   }
 
-  server.get("/auth/login", async (_request, reply) => {
+  server.get<{ Querystring: { reauthenticate?: string } }>("/auth/login", async (request, reply) => {
     const now = Date.now();
     for (const [key, value] of pendingLogins) if (value.expiresAt < now) pendingLogins.delete(key);
     const state = base64url(randomBytes(32));
@@ -107,6 +107,10 @@ export async function registerBrowserSessions(server: FastifyInstance): Promise<
     const redirectUri = `${process.env.PUBLIC_ORIGIN ?? "http://127.0.0.1:3000"}/auth/callback`;
     const url = new URL(metadata.authorization_endpoint);
     url.search = new URLSearchParams({ client_id: config.clientId, redirect_uri: redirectUri, response_type: "code", scope: "openid profile email", state, code_challenge: challenge, code_challenge_method: "S256" }).toString();
+    if (request.query.reauthenticate === "true") {
+      url.searchParams.set("prompt", "login");
+      url.searchParams.set("max_age", "0");
+    }
     return reply.header("set-cookie", cookie(stateCookie, state, 300, config.secure, "Lax")).redirect(url.toString());
   });
 

@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import { portalApi, type Application, type Assessment } from "./api";
+import { portalApi, ApiError, type Application, type Assessment } from "./api";
 import { MemorySession, type PortalRole, type PortalSession } from "./auth-session";
 import "./styles.css";
 import { SecurityScans } from "./security-scans";
@@ -9,7 +9,7 @@ const authSession = new MemorySession();
 
 function Login({ onSignedIn }: { onSignedIn: (session: PortalSession) => void }) {
   const [identity, setIdentity] = useState<{ subject: string; displayName: string }>();
-  const [companyId, setCompanyId] = useState("demo-company");
+  const [companyId, setCompanyId] = useState("company-a");
   const [role, setRole] = useState<PortalRole>("operator");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -58,14 +58,16 @@ function Login({ onSignedIn }: { onSignedIn: (session: PortalSession) => void })
 }
 
 function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () => void }) {
-  const [companyInput, setCompanyInput] = useState(session.companyId ?? "demo-company");
-  const [companyId, setCompanyId] = useState(session.companyId ?? "demo-company");
+  const [companyInput, setCompanyInput] = useState(session.companyId ?? "company-a");
+  const [companyId, setCompanyId] = useState(session.companyId ?? "company-a");
   const [applications, setApplications] = useState<Application[]>([]);
   const [selected, setSelected] = useState<Application>();
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [registrationError, setRegistrationError] = useState("");
+  const [stepUpRequired, setStepUpRequired] = useState(false);
   const [sourceRevision, setSourceRevision] = useState("");
 
   async function loadApplications(target = companyId) {
@@ -83,11 +85,16 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
 
   async function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setRegistrationError(""); setStepUpRequired(false);
     const data = new FormData(event.currentTarget);
     try {
       await portalApi.registerApplication(companyId, String(data.get("name")), String(data.get("repositoryUrl")));
       setShowRegister(false); await loadApplications();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Registration failed"); }
+    } catch (reason) {
+      const stepUp = reason instanceof ApiError && reason.status === 401 && reason.message.startsWith("Step-up authentication is required");
+      setStepUpRequired(stepUp);
+      setRegistrationError(stepUp ? "Verify your identity with your authenticator, then retry registration. This will leave the form; nothing has been registered." : reason instanceof Error ? reason.message : "Registration failed");
+    }
   }
 
   async function assess(application: Application) {
@@ -107,7 +114,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
     <main className="workspace">
       <header><div><span className="eyebrow blue">CONTROL PLANE</span><h1>{session.role === "operator" ? "Customer applications" : "Your applications"}</h1><p>{session.role === "operator" ? "Review applications and readiness by customer." : `Manage AI-built applications for ${companyId}.`}</p></div><button className="primary" onClick={() => setShowRegister(true)}>Register application</button></header>
       {session.role === "operator" && <section className="company-switcher card"><label>Customer<input value={companyInput} onChange={(event) => setCompanyInput(event.target.value)} /></label><button onClick={() => { setSelected(undefined); setCompanyId(companyInput.trim()); }}>Open customer</button><span>Currently viewing <strong>{companyId}</strong></span></section>}
-      <section className="metrics"><article><span>Applications</span><strong>{applications.length}</strong><small>Registered for this customer</small></article><article><span>Selected assessments</span><strong>{assessments.length}</strong><small>Queue and completion history</small></article><article><span>Platform status</span><strong className="healthy">Healthy</strong><small>PostgreSQL and worker online</small></article></section>
+      <section className="metrics"><article><span>Applications</span><strong>{applications.length}</strong><small>Registered for this customer</small></article><article><span>Selected assessments</span><strong>{assessments.length}</strong><small>Queue and completion history</small></article><article><span>Platform status</span><strong>Not monitored</strong><small>Database and worker health are not reported by this view.</small></article></section>
       {error && <div className="error">{error}</div>}
       <section className="content-grid">
         <div className="card table-card"><div className="section-title"><div><h2>Applications</h2><p>Repositories managed through the control plane.</p></div><button onClick={() => void loadApplications()}>Refresh</button></div>
@@ -116,7 +123,7 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
         <div className="card detail-card">{selected ? <><div className="section-title"><div><span className="eyebrow blue">APPLICATION</span><h2>{selected.name}</h2></div><span className="badge">{companyId}</span></div><dl><div><dt>Repository</dt><dd>{selected.repositoryUrl}</dd></div><div><dt>Registered</dt><dd>{new Date(selected.createdAt).toLocaleString()}</dd></div></dl><label>Commit SHA<input value={sourceRevision} onChange={(event) => setSourceRevision(event.target.value)} pattern="[0-9a-fA-F]{40}" maxLength={40} required placeholder="40-character Git commit SHA" /></label><button className="primary full" disabled={!/^[0-9a-f]{40}$/i.test(sourceRevision.trim())} onClick={() => void assess(selected)}>Run assessment</button><h3>Assessment history</h3>{assessments.length ? assessments.map((assessment) => <div className="assessment" key={assessment.id}><span className={`status ${assessment.status}`}>{assessment.status}</span><small>{assessment.sourceRevision.slice(0, 12)} · {assessment.correlationId}</small></div>) : <p className="empty">No assessments yet.</p>}</> : <div className="empty-state"><div>↗</div><h2>Select an application</h2><p>Open an application to view its deployment assessment history.</p></div>}</div>
       </section>
       {selected && <SecurityScans key={`${companyId}:${selected.id}`} companyId={companyId} applicationId={selected.id} />}
-      {showRegister && <div className="modal-backdrop"><form className="card modal" onSubmit={register}><div className="section-title"><div><span className="eyebrow blue">NEW APPLICATION</span><h2>Connect a repository</h2></div><button type="button" onClick={() => setShowRegister(false)}>×</button></div><label>Application name<input name="name" required placeholder="Customer evaluation portal" /></label><label>Repository URL<input name="repositoryUrl" type="url" required placeholder="https://github.com/company/application" /></label><div className="modal-actions"><button type="button" onClick={() => setShowRegister(false)}>Cancel</button><button className="primary" type="submit">Register application</button></div></form></div>}
+      {showRegister && <div className="modal-backdrop"><form className="card modal" onSubmit={register}><div className="section-title"><div><span className="eyebrow blue">NEW APPLICATION</span><h2>Connect a repository</h2></div><button type="button" onClick={() => setShowRegister(false)}>×</button></div><label>Application name<input name="name" required placeholder="Customer evaluation portal" /></label><label>Repository URL<input name="repositoryUrl" type="url" required placeholder="https://github.com/company/application" /></label>{registrationError && <div className="error" role="alert">{registrationError}{stepUpRequired && <button type="button" onClick={portalApi.reauthenticate}>Verify identity</button>}</div>}<div className="modal-actions"><button type="button" onClick={() => setShowRegister(false)}>Cancel</button><button className="primary" type="submit">Register application</button></div></form></div>}
     </main>
   </div>;
 }
