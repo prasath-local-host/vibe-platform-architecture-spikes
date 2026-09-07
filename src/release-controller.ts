@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Body, Controller, Get, Headers, HttpCode, HttpException, Param, Post } from "@nestjs/common";
-import { ApiAcceptedResponse, ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse } from "@nestjs/swagger";
+import { ApiAcceptedResponse, ApiBadRequestResponse, ApiBearerAuth, ApiBody, ApiExtraModels, ApiForbiddenResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiParam, ApiServiceUnavailableResponse, ApiTags, ApiUnauthorizedResponse, getSchemaPath } from "@nestjs/swagger";
 import { z } from "zod";
 import { ForbiddenError } from "./domain.js";
 import { AuthenticationError, IdentityConfigurationError, IdentityService } from "./identity.js";
@@ -11,6 +11,7 @@ const schema = z.object({ buildId: z.string().uuid(), idempotencyKey: z.string()
 
 @Controller("companies/:companyId/applications/:applicationId/releases")
 @ApiTags("releases")
+@ApiExtraModels(ValidationIssueResponse, HttpErrorResponse)
 @ApiBearerAuth("bearer")
 @ApiParam({ name: "companyId", description: "VCP-controlled company identifier" })
 @ApiParam({ name: "applicationId", format: "uuid" })
@@ -24,7 +25,7 @@ export class ReleaseController {
   @HttpCode(202)
   @ApiOperation({ summary: "Queue deployment of a completed build to the test environment" })
   @ApiBody({ type: CreateReleaseRequest })
-  @ApiBadRequestResponse({ type: [ValidationIssueResponse], description: "Request is invalid or the build is not completed." })
+  @ApiBadRequestResponse({ schema: { oneOf: [{ type: "array", items: { $ref: getSchemaPath(ValidationIssueResponse) } }, { $ref: getSchemaPath(HttpErrorResponse) }] }, description: "Request is invalid, the build is incomplete, or required artifact-security/supply-chain approval is missing." })
   @ApiNotFoundResponse({ type: HttpErrorResponse, description: "Completed build does not exist for this application and company." })
   @ApiAcceptedResponse({ type: ReleaseRecordResponse })
   async create(@Param("companyId") companyId: string, @Param("applicationId") applicationId: string, @Headers() headers: Record<string, string | undefined>, @Body() rawBody: unknown) {
@@ -63,6 +64,7 @@ export class ReleaseController {
     if (error instanceof ForbiddenError) throw new HttpException(error.message, 403);
     if (error instanceof Error && error.message === "Completed build not found") throw new HttpException(error.message, 404);
     if (error instanceof Error && error.message === "Only a completed build can be released") throw new HttpException(error.message, 400);
+    if (error instanceof Error && ["Only a security-approved build artifact can be released", "Supply-chain evidence is required before release"].includes(error.message)) throw new HttpException(error.message, 400);
     throw error;
   }
 }

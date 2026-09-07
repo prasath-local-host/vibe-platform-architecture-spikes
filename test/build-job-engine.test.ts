@@ -30,10 +30,12 @@ describe("artifact-publishing build job engine", () => {
       store,
       30,
       new BaselineArtifactSecurityScanner(),
+      { async scanSource() { return { id: "scan-evidence", digest: `sha256:${"d".repeat(64)}` }; }, async scanImage() { throw new Error("unused"); } },
     );
     const result = await engine.execute(build);
     expect(published).toMatchObject({ companyId: "company-a", buildId: build.id, totalBytes: 5 });
     expect(result).toMatchObject({ artifactId: published!.id, artifactDigest: published!.digest, buildStatus: "succeeded" });
+    expect(result).toMatchObject({ supplyChainEvidenceId: "scan-evidence", supplyChainEvidenceDigest: `sha256:${"d".repeat(64)}` });
   });
 
   it("does not publish missing build output", async () => {
@@ -47,6 +49,19 @@ describe("artifact-publishing build job engine", () => {
     );
     await expect(engine.execute(build)).rejects.toThrow("no publishable output");
     expect(puts).toBe(0);
+  });
+
+  it("does not execute repository code when the source scan fails", async () => {
+    let built = false;
+    const engine = new SourceBuildJobEngine(
+      { async acquire() { return createSourceArtifact(build.sourceRevision, []); } },
+      { async execute() { built = true; throw new Error("must not build"); } },
+      { async put() {}, async get() { return undefined; }, async deleteExpired() { return 0; } },
+      30, new BaselineArtifactSecurityScanner(),
+      { async scanSource() { throw new Error("policy rejected"); }, async scanImage() { throw new Error("unused"); } },
+    );
+    await expect(engine.execute(build)).rejects.toThrow("policy rejected");
+    expect(built).toBe(false);
   });
 
   it("rejects unsafe output before it reaches artifact storage", async () => {

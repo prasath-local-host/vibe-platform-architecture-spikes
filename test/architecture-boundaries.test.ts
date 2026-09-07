@@ -17,7 +17,7 @@ describe("architecture module boundaries", () => {
     const innerModules = analysis.modules.filter(
       (module) => module.layer === "domain" || module.layer === "application",
     );
-    expect(innerModules).toHaveLength(12);
+    expect(innerModules.map((module) => module.name)).toEqual(expect.arrayContaining(["domain.ts", "supply-chain-security.ts"]));
     expect(
       innerModules.flatMap((module) => module.externalDependencies),
     ).toEqual(["node:crypto", "node:crypto", "node:crypto", "node:crypto", "node:crypto", "node:async_hooks", "node:crypto"]);

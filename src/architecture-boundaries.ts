@@ -41,6 +41,7 @@ const applicationModules = new Set([
   "dependency-restoration.ts",
   "application-service.ts",
   "artifact-service.ts",
+  "supply-chain-security.ts",
   "assessment-service.ts",
   "identity.ts",
   "release-service.ts",

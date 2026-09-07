@@ -79,6 +79,8 @@ export class BuildResultResponse {
   securityScanner!: string;
   @ApiProperty({ type: String, format: "date-time" })
   securityScannedAt!: string;
+  @ApiPropertyOptional({ type: String, format: "uuid" }) supplyChainEvidenceId?: string;
+  @ApiPropertyOptional({ type: String, pattern: "^sha256:[0-9a-f]{64}$" }) supplyChainEvidenceDigest?: string;
 }
 
 export class BuildRecordResponse {

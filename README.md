@@ -63,6 +63,18 @@ An opt-in release-routing E2E harness uses only a platform-owned fixture. It cre
 
 An additional opt-in live acceptance harness fetches an exact pushed commit from GitHub, builds the platform-owned fixture at `fixtures/platform-node-app` through the controlled-restoration and networkless-build phases, stores the content-addressed artifact, deploys it with the hardened test adapter, verifies `/health`, and activates the stable route. Set `VCP_E2E_RUNTIME_IMAGE` and `VCP_E2E_GITHUB_REVISION`, then run `pnpm test:e2e-github-release`. `VCP_E2E_GITHUB_REPOSITORY_URL` defaults to this architecture repository. The harness skips unless both required values are supplied.
 
+## Supply-chain scanning
+
+Set `SUPPLY_CHAIN_SCANNING_ENABLED=true`, `TRIVY_SCANNER_IMAGE` to an approved digest-pinned Trivy image, `TRIVY_SCANNER_NETWORK` to a dedicated scanner network, and `SUPPLY_CHAIN_EVIDENCE_ROOT` to persistent evidence storage. Production (`NODE_ENV=production`) requires this configuration even if the opt-in flag is false. Restrict network access at the infrastructure layer to approved vulnerability-database and image registries; a named Docker network alone does not enforce an allowlist.
+
+The build worker scans the exact source artifact before executing repository code. Trivy emits a CycloneDX SBOM with vulnerability findings; high, critical, unknown, or unrecognized severity rejects the build. Runtime images are scanned by digest through the remote registry before candidate deployment, with no Docker socket exposed to the scanner. Missing databases, scanner failures, malformed reports, and evidence-write failures prevent approval. The existing baseline artifact-content check still runs after build.
+
+Evidence files include company and build/release identity, source digest or runtime image digest, scanner image digest, timestamp, policy version, decision, and the full CycloneDX report. Both passing and policy-rejected reports are retained. Build responses reference source evidence by UUID and SHA-256. Scanner errors without a valid report remain failures, not scan evidence. Evidence storage is operator-only and currently requires filesystem permissions, backup, and retention management. Existing builds without source-scan evidence cannot create new releases while scanning is required; rebuild them. Previously queued releases and rollback targets require operational review before enabling this policy.
+
+Local acceptance: set `VCP_E2E_TRIVY_IMAGE` to an approved scanner digest and `VCP_E2E_TRIVY_NETWORK` to a disposable network, then run `pnpm exec vitest run test/trivy-live.test.ts`. This uses a synthetic vulnerable Lodash lockfile, verifies that the SBOM identifies Lodash, and expects policy rejection. It skips without explicit configuration. Full-source scanning reports dependencies that may not ship in a bundled application; it is not an exact inventory of the final executable. Production malware scanning, signed attestations, exceptions, private-registry authentication, scan-database provenance/freshness reporting, and evidence retrieval APIs remain follow-up work.
+
+Scanner flags and report format follow [Trivy filesystem documentation](https://trivy.dev/docs/latest/guide/references/configuration/cli/trivy_filesystem/) and [Trivy image documentation](https://trivy.dev/docs/latest/guide/references/configuration/cli/trivy_image/).
+
 ## Identity boundary
 
 The control plane separates authentication from authorization:

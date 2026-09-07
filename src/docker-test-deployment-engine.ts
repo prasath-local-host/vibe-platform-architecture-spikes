@@ -6,6 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { verifyBuildArtifact, type ArtifactStore } from "./artifact-service.js";
 import type { ReleaseRecord } from "./domain.js";
 import type { DeploymentEngine } from "./release-service.js";
+import type { SupplyChainScanner } from "./supply-chain-security.js";
 
 const executeFile = promisify(execFile);
 type DockerRunner = (args: readonly string[], timeoutMs: number) => Promise<string>;
@@ -21,6 +22,7 @@ export interface DockerTestDeploymentConfig {
   readonly healthPath?: string;
   readonly healthAttempts?: number;
   readonly healthIntervalMs?: number;
+  readonly supplyChainScanner?: SupplyChainScanner;
 }
 
 function safePath(value: string): string {
@@ -51,6 +53,7 @@ export class DockerTestDeploymentEngine implements DeploymentEngine {
     if (!artifact) throw new Error("Build artifact not found");
     verifyBuildArtifact(artifact);
     if (artifact.digest !== release.artifactDigest || artifact.applicationId !== release.applicationId) throw new Error("Build artifact does not match release record");
+    await this.config.supplyChainScanner?.scanImage(release.companyId, release.id, this.config.image);
     const root = join(this.config.deploymentRoot, release.id);
     await mkdir(root, { recursive: true });
     for (const file of artifact.files) {

@@ -73,6 +73,8 @@ export interface BuildRecord {
     readonly securityStatus: "approved" | "rejected";
     readonly securityScanner: string;
     readonly securityScannedAt: string;
+    readonly supplyChainEvidenceId?: string;
+    readonly supplyChainEvidenceDigest?: string;
   };
   readonly error?: string;
   readonly createdAt: string;

@@ -4,6 +4,7 @@ import type { SourceArtifactRepository } from "./build-service.js";
 import type { BuildRecord } from "./domain.js";
 import { createBuildArtifact, type ArtifactStore } from "./artifact-service.js";
 import type { ArtifactSecurityScanner } from "./artifact-security.js";
+import type { SupplyChainScanner } from "./supply-chain-security.js";
 
 export class SourceBuildJobEngine implements BuildJobEngine {
   constructor(
@@ -12,10 +13,12 @@ export class SourceBuildJobEngine implements BuildJobEngine {
     private readonly artifacts: ArtifactStore,
     private readonly retentionDays: number,
     private readonly scanner: ArtifactSecurityScanner,
+    private readonly supplyChain?: SupplyChainScanner,
   ) {}
 
   async execute(build: BuildRecord): Promise<NonNullable<BuildRecord["result"]>> {
     const artifact = await this.sources.acquire(build.repositoryUrl, build.sourceRevision);
+    const supplyChainEvidence = await this.supplyChain?.scanSource(build.companyId, build.id, artifact);
     const result = await this.pipeline.execute({ artifact, packageManager: build.packageManager, script: build.script });
     if (result.status !== "succeeded") throw new Error(`Build pipeline ${result.status}`);
     if (!result.outputFiles?.length) throw new Error("Build pipeline produced no publishable output");
@@ -29,6 +32,7 @@ export class SourceBuildJobEngine implements BuildJobEngine {
     return {
       artifactId: output.id, artifactDigest: output.digest, restorationStatus: "succeeded", buildStatus: "succeeded",
       securityStatus: security.status, securityScanner: security.scanner, securityScannedAt: security.scannedAt,
+      ...(supplyChainEvidence ? { supplyChainEvidenceId: supplyChainEvidence.id, supplyChainEvidenceDigest: supplyChainEvidence.digest } : {}),
     };
   }
 }

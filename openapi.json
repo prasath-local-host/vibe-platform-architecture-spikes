@@ -739,14 +739,21 @@
             }
           },
           "400": {
-            "description": "Request is invalid or the build is not completed.",
+            "description": "Request is invalid, the build is incomplete, or required artifact-security/supply-chain approval is missing.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ValidationIssueResponse"
-                  }
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ValidationIssueResponse"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/HttpErrorResponse"
+                    }
+                  ]
                 }
               }
             }
@@ -1337,6 +1344,14 @@
           "securityScannedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "supplyChainEvidenceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "supplyChainEvidenceDigest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
           }
         },
         "required": [

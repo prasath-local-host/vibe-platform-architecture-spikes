@@ -40,13 +40,14 @@ function audit(actor: Actor, release: ReleaseRecord, action: string, occurredAt:
 }
 
 export class ReleaseService {
-  constructor(private readonly releases: ReleaseRepository, private readonly builds: BuildRecordRepository) {}
+  constructor(private readonly releases: ReleaseRepository, private readonly builds: BuildRecordRepository, private readonly supplyChainRequired = false) {}
   async create(command: CreateReleaseCommand): Promise<ReleaseRecord> {
     requireCompanyAccess(command.actor, command.companyId);
     const build = await this.builds.findById(command.companyId, command.buildId);
     if (!build || build.applicationId !== command.applicationId) throw new Error("Completed build not found");
     if (build.status !== "completed" || !build.result) throw new Error("Only a completed build can be released");
     if (build.result.securityStatus !== "approved") throw new Error("Only a security-approved build artifact can be released");
+    if (this.supplyChainRequired && (!build.result.supplyChainEvidenceId || !/^sha256:[0-9a-f]{64}$/.test(build.result.supplyChainEvidenceDigest ?? ""))) throw new Error("Supply-chain evidence is required before release");
     const previous = await this.releases.latestHealthy(command.companyId, command.applicationId);
     const now = new Date().toISOString();
     const release: ReleaseRecord = {

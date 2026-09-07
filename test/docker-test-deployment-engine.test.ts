@@ -11,6 +11,14 @@ const image = `node@sha256:${"b".repeat(64)}`;
 const deploymentRoot = join(tmpdir(), "vcp-deployment-engine-tests");
 
 describe("Docker test deployment engine", () => {
+  it("does not start a container when the runtime image scan fails", async () => {
+    let dockerCalled = false;
+    const engine = new DockerTestDeploymentEngine({ image, network: "vcp-test", deploymentRoot,
+      supplyChainScanner: { async scanSource() { throw new Error("unused"); }, async scanImage(_company, _release, target) { expect(target).toBe(image); throw new Error("policy rejected"); } },
+    }, { async get() { return artifact; }, async put() {}, async deleteExpired() { return 0; } }, async () => { dockerCalled = true; return ""; });
+    await expect(engine.deploy(release)).rejects.toThrow("policy rejected");
+    expect(dockerCalled).toBe(false);
+  });
   it("materializes a verified artifact and starts a hardened loopback container", async () => {
     const calls: readonly string[][] = [] as string[][];
     const runner = async (args: readonly string[]) => { (calls as string[][]).push([...args]); if (args[0] === "inspect") throw new Error("missing"); if (args[0] === "port") return "127.0.0.1:32768"; return "container"; };

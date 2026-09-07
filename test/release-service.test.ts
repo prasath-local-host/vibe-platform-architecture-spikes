@@ -4,6 +4,8 @@ import type { Actor, BuildRecord, ReleaseRecord } from "../src/domain.js";
 import { InMemoryAuditRepository } from "../src/in-memory-repositories.js";
 import { InMemoryReleaseRepository } from "../src/in-memory-release-repository.js";
 import { ReleaseService, ReleaseWorker } from "../src/release-service.js";
+import { ReleaseController } from "../src/release-controller.js";
+import type { IdentityService } from "../src/identity.js";
 
 const actor: Actor = { subject: "user-a", role: "company-user", companyId: "company-a" };
 const build: BuildRecord = {
@@ -19,6 +21,15 @@ const builds: BuildRecordRepository = {
 };
 
 describe("test release lifecycle", () => {
+  it("returns a client policy error instead of a server error for missing evidence", async () => {
+    const service = new ReleaseService(new InMemoryReleaseRepository(new InMemoryAuditRepository()), builds, true);
+    const controller = new ReleaseController(service, { async resolveActor() { return actor; } } as unknown as IdentityService);
+    await expect(controller.create("company-a", build.applicationId, {}, { buildId: build.id, idempotencyKey: "legacy-release" })).rejects.toMatchObject({ status: 400, message: "Supply-chain evidence is required before release" });
+  });
+  it("blocks legacy builds when supply-chain scanning is required", async () => {
+    const repository = new InMemoryReleaseRepository(new InMemoryAuditRepository());
+    await expect(new ReleaseService(repository, builds, true).create({ actor, companyId: "company-a", applicationId: build.applicationId, buildId: build.id, idempotencyKey: "legacy-release", correlationId: "legacy" })).rejects.toThrow("Supply-chain evidence is required");
+  });
   it("deploys and records successful health verification", async () => {
     const audit = new InMemoryAuditRepository(); const repository = new InMemoryReleaseRepository(audit);
     const service = new ReleaseService(repository, builds);

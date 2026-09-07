@@ -39,6 +39,7 @@ import { DockerTestDeploymentEngine } from "./docker-test-deployment-engine.js";
 import { FilesystemIngressRouter } from "./filesystem-ingress-router.js";
 import { TraefikFileReconciler, UnavailableIngressReconciler, type IngressReconciler } from "./traefik-file-reconciler.js";
 import { BaselineArtifactSecurityScanner } from "./artifact-security.js";
+import { TrivySupplyChainScanner } from "./trivy-supply-chain-scanner.js";
 
 export interface ApplicationRuntime {
   readonly applications: ApplicationService;
@@ -56,6 +57,14 @@ export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
   const logger = new StructuredLogger();
+  const supplyChainRequired = process.env.SUPPLY_CHAIN_SCANNING_ENABLED === "true" || process.env.NODE_ENV === "production";
+  if (supplyChainRequired && (!process.env.TRIVY_SCANNER_IMAGE || !process.env.TRIVY_SCANNER_NETWORK || !process.env.SUPPLY_CHAIN_EVIDENCE_ROOT)) {
+    throw new Error("Supply-chain scanning requires a pinned Trivy image, scanner network, and evidence root");
+  }
+  const supplyChain = supplyChainRequired ? new TrivySupplyChainScanner({
+    image: process.env.TRIVY_SCANNER_IMAGE!, network: process.env.TRIVY_SCANNER_NETWORK!,
+    evidenceRoot: process.env.SUPPLY_CHAIN_EVIDENCE_ROOT!,
+  }) : undefined;
   const stepUpContexts = parseStepUpAuthenticationContexts(
     process.env.STEP_UP_AUTHENTICATION_CONTEXTS ??
       process.env.PRIVILEGED_AUTHENTICATION_CONTEXTS,
@@ -105,12 +114,13 @@ export async function createApplicationRuntime(
         artifactStore!,
         Number(process.env.BUILD_ARTIFACT_RETENTION_DAYS ?? 30),
         new BaselineArtifactSecurityScanner(),
+        supplyChain,
       )
     : new UnavailableBuildJobEngine();
   const releaseConfigurationComplete = Boolean(artifactStore && process.env.RELEASE_RUNTIME_IMAGE && process.env.RELEASE_NETWORK && process.env.RELEASE_DEPLOYMENT_ROOT);
   if (process.env.RELEASE_WORKER_ENABLED === "true" && !releaseConfigurationComplete) throw new Error("Release worker requires artifact storage, a digest-pinned runtime image, a deployment network, and a deployment root");
   const deploymentEngine = releaseConfigurationComplete
-    ? new DockerTestDeploymentEngine({ image: process.env.RELEASE_RUNTIME_IMAGE!, network: process.env.RELEASE_NETWORK!, deploymentRoot: process.env.RELEASE_DEPLOYMENT_ROOT!, containerPort: Number(process.env.RELEASE_CONTAINER_PORT ?? 3000), healthPath: process.env.RELEASE_HEALTH_PATH ?? "/health", healthAttempts: Number(process.env.RELEASE_HEALTH_ATTEMPTS ?? 10), healthIntervalMs: Number(process.env.RELEASE_HEALTH_INTERVAL_MS ?? 250), ...(process.env.RELEASE_COMMAND ? { command: process.env.RELEASE_COMMAND.split(" ").filter(Boolean) } : {}) }, artifactStore!)
+    ? new DockerTestDeploymentEngine({ image: process.env.RELEASE_RUNTIME_IMAGE!, network: process.env.RELEASE_NETWORK!, deploymentRoot: process.env.RELEASE_DEPLOYMENT_ROOT!, containerPort: Number(process.env.RELEASE_CONTAINER_PORT ?? 3000), healthPath: process.env.RELEASE_HEALTH_PATH ?? "/health", healthAttempts: Number(process.env.RELEASE_HEALTH_ATTEMPTS ?? 10), healthIntervalMs: Number(process.env.RELEASE_HEALTH_INTERVAL_MS ?? 250), ...(supplyChain ? { supplyChainScanner: supplyChain } : {}), ...(process.env.RELEASE_COMMAND ? { command: process.env.RELEASE_COMMAND.split(" ").filter(Boolean) } : {}) }, artifactStore!)
     : new UnavailableDeploymentEngine();
   const ingress = process.env.INGRESS_ROUTE_ROOT ? new FilesystemIngressRouter(process.env.INGRESS_ROUTE_ROOT) : undefined;
   if (process.env.INGRESS_RECONCILER_ENABLED === "true" && (!ingress || !process.env.TRAEFIK_DYNAMIC_CONFIG_PATH)) throw new Error("Ingress reconciler requires route storage and a Traefik dynamic configuration path");
@@ -137,7 +147,7 @@ export async function createApplicationRuntime(
       ),
       builds: new BuildJobService(builds, applications, logger),
       buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `local-build-${process.pid}`, builds, buildEngine, logger),
-      releases: new ReleaseService(releases, builds),
+      releases: new ReleaseService(releases, builds, supplyChainRequired),
       releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `local-release-${process.pid}`, releases, deploymentEngine, ingress),
       ingressReconciler,
       identity: new IdentityService(
@@ -173,7 +183,7 @@ export async function createApplicationRuntime(
     ),
     builds: new BuildJobService(builds, applications, logger),
     buildWorker: new BuildJobWorker(process.env.BUILD_WORKER_ID ?? `build-worker-${process.pid}`, builds, buildEngine, logger),
-    releases: new ReleaseService(releases, builds),
+    releases: new ReleaseService(releases, builds, supplyChainRequired),
     releaseWorker: new ReleaseWorker(process.env.RELEASE_WORKER_ID ?? `release-worker-${process.pid}`, releases, deploymentEngine, ingress),
     ingressReconciler,
     identity: new IdentityService(
