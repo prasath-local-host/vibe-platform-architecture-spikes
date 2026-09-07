@@ -1,12 +1,13 @@
 import { execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { verifySourceArtifact, type SourceArtifact } from "./build-service.js";
 import type { SupplyChainEvidence, SupplyChainScanner } from "./supply-chain-security.js";
+import { withScannerCache } from "./scanner-cache.js";
 
 const executeFile = promisify(execFile);
 const pinnedImage = /^[a-zA-Z0-9][a-zA-Z0-9./:_-]*@sha256:[0-9a-f]{64}$/;
@@ -25,6 +26,7 @@ export interface TrivyScannerConfig {
   readonly network: string;
   readonly evidenceRoot: string;
   readonly timeoutMs?: number;
+  readonly cacheRoot?: string;
 }
 
 type Runner = (args: readonly string[], timeoutMs: number) => Promise<string>;
@@ -75,6 +77,11 @@ export class TrivySupplyChainScanner implements SupplyChainScanner {
   }
 
   private async scan(companyId: string, entityId: string, identity: string, kind: "fs" | "image", target: string, workspace?: string): Promise<SupplyChainEvidence> {
+    if (this.config.cacheRoot) return withScannerCache(this.config.cacheRoot, (cache) => this.scanLocked(companyId, entityId, identity, kind, target, workspace, cache));
+    return this.scanLocked(companyId, entityId, identity, kind, target, workspace);
+  }
+
+  private async scanLocked(companyId: string, entityId: string, identity: string, kind: "fs" | "image", target: string, workspace?: string, cache?: string): Promise<SupplyChainEvidence> {
     const id = randomUUID();
     const container = `vcp-scan-${id}`;
     const timeout = this.config.timeoutMs ?? 300_000;
@@ -86,8 +93,9 @@ export class TrivySupplyChainScanner implements SupplyChainScanner {
         "--user", "65532:65532", "--pids-limit", "128", "--memory", "3g", "--cpus", "2",
         "--tmpfs", "/tmp:rw,noexec,nosuid,size=2g", "--workdir", "/tmp", "--entrypoint", "trivy",
         ...(workspace ? ["--mount", `type=bind,source=${workspace},target=/source,readonly`] : []),
+        ...(cache ? ["--mount", `type=bind,source=${cache},target=/cache`] : []),
         this.config.image, kind, "--quiet", "--config", "/dev/null", "--ignorefile", "/dev/null",
-        "--cache-dir", "/tmp/trivy-cache", "--timeout", `${Math.floor(timeout / 1000)}s`,
+        "--cache-dir", cache ? "/cache" : "/tmp/trivy-cache", "--cache-backend", "memory", "--timeout", `${Math.floor(timeout / 1000)}s`,
         "--scanners", "vuln", "--format", "cyclonedx", "--exit-code", "0",
         ...(kind === "image" ? ["--image-src", "remote"] : ["--include-dev-deps"]), target,
       ], timeout);
@@ -108,7 +116,9 @@ export class TrivySupplyChainScanner implements SupplyChainScanner {
     });
     const digest = `sha256:${createHash("sha256").update(evidence).digest("hex")}`;
     await mkdir(this.root, { recursive: true });
-    await writeFile(join(this.root, `${id}.json`), evidence, { flag: "wx" });
+    const temporary = join(this.root, `${id}.tmp`);
+    try { await writeFile(temporary, evidence, { flag: "wx" }); await rename(temporary, join(this.root, `${id}.json`)); }
+    finally { await rm(temporary, { force: true }); }
     if (blocked.length) throw new Error(`Supply-chain policy rejected ${blocked.length} vulnerabilities; evidence ${id}`);
     return { id, digest };
   }

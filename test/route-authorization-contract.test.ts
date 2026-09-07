@@ -25,6 +25,9 @@ import {
 } from "../src/in-memory-repositories.js";
 import { createOpenApiDocument } from "../src/openapi.js";
 import { ReleaseController } from "../src/release-controller.js";
+import { ScanEvidenceController } from "../src/scan-evidence-controller.js";
+import { ScanEvidenceService } from "../src/scan-evidence-service.js";
+import { FilesystemScanEvidenceReader } from "../src/filesystem-scan-evidence.js";
 import { ReleaseService } from "../src/release-service.js";
 import { InMemoryReleaseRepository } from "../src/in-memory-release-repository.js";
 
@@ -77,12 +80,15 @@ describe("documented route authorization contract", () => {
       new ReleaseService(new InMemoryReleaseRepository(audit), new InMemoryBuildRecordRepository(audit)),
       identity,
     );
+    const scans = new ScanEvidenceController(new ScanEvidenceService(new FilesystemScanEvidenceReader(), new InMemoryBuildRecordRepository(audit), new InMemoryReleaseRepository(audit)), identity);
     const applicationId = "11111111-1111-4111-8111-111111111111";
     const assessmentId = "22222222-2222-4222-8222-222222222222";
     const buildId = "33333333-3333-4333-8333-333333333333";
     const releaseId = "44444444-4444-4444-8444-444444444444";
 
     operations = [
+      { method: "get", path: "/companies/{companyId}/applications/{applicationId}/security-scans", invoke: (headers) => scans.list("company-b", applicationId, headers) },
+      { method: "get", path: "/companies/{companyId}/applications/{applicationId}/security-scans/{scanId}", invoke: (headers) => scans.get("company-b", applicationId, buildId, headers) },
       {
         method: "get",
         path: "/companies/{companyId}/applications",

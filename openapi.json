@@ -974,6 +974,171 @@
           "releases"
         ]
       }
+    },
+    "/companies/{companyId}/applications/{applicationId}/security-scans": {
+      "get": {
+        "operationId": "ScanEvidenceController_list",
+        "parameters": [
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScanSummaryResponse"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List saved security scans for this application's builds and releases",
+        "tags": [
+          "security-scans"
+        ]
+      }
+    },
+    "/companies/{companyId}/applications/{applicationId}/security-scans/{scanId}": {
+      "get": {
+        "operationId": "ScanEvidenceController_get",
+        "parameters": [
+          {
+            "name": "scanId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "applicationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "path",
+            "schema": {}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanDetailResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read a saved scan and its CycloneDX report",
+        "tags": [
+          "security-scans"
+        ]
+      }
     }
   },
   "info": {
@@ -1562,6 +1727,158 @@
           "idempotencyKey",
           "correlationId",
           "createdAt"
+        ]
+      },
+      "ScanFindingResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "severities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "severities"
+        ]
+      },
+      "ScanSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "identity": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "fs",
+              "image"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "scannedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scannerImage": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "string"
+          },
+          "componentCount": {
+            "type": "number"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanFindingResponse"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "entityId",
+          "identity",
+          "kind",
+          "status",
+          "scannedAt",
+          "scannerImage",
+          "policy",
+          "componentCount",
+          "findings"
+        ]
+      },
+      "ScanDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "identity": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "fs",
+              "image"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected"
+            ]
+          },
+          "scannedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scannerImage": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "string"
+          },
+          "componentCount": {
+            "type": "number"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScanFindingResponse"
+            }
+          },
+          "report": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Complete saved CycloneDX report."
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "entityId",
+          "identity",
+          "kind",
+          "status",
+          "scannedAt",
+          "scannerImage",
+          "policy",
+          "componentCount",
+          "findings",
+          "report"
         ]
       }
     }

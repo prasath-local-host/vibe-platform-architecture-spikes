@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { ScanEvidenceController } from "./scan-evidence-controller.js";
+import { ScanEvidenceService } from "./scan-evidence-service.js";
 import { AppController } from "./controller.js";
 import { AssessmentController } from "./assessment-controller.js";
 import { ApplicationService } from "./application-service.js";
@@ -20,8 +22,9 @@ import {
 const APPLICATION_RUNTIME = Symbol("APPLICATION_RUNTIME");
 
 @Module({
-  controllers: [AppController, AssessmentController, BuildController, ReleaseController],
+  controllers: [AppController, AssessmentController, BuildController, ReleaseController, ScanEvidenceController],
   providers: [
+    { provide: ScanEvidenceService, inject: [APPLICATION_RUNTIME], useFactory: (runtime: ApplicationRuntime) => runtime.scanEvidence },
     {
       provide: APPLICATION_RUNTIME,
       useFactory: () => createApplicationRuntime(process.env.DATABASE_URL),

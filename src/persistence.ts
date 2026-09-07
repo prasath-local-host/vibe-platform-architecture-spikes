@@ -40,8 +40,12 @@ import { FilesystemIngressRouter } from "./filesystem-ingress-router.js";
 import { TraefikFileReconciler, UnavailableIngressReconciler, type IngressReconciler } from "./traefik-file-reconciler.js";
 import { BaselineArtifactSecurityScanner } from "./artifact-security.js";
 import { TrivySupplyChainScanner } from "./trivy-supply-chain-scanner.js";
+import { join } from "node:path";
+import { ScanEvidenceService } from "./scan-evidence-service.js";
+import { FilesystemScanEvidenceReader } from "./filesystem-scan-evidence.js";
 
 export interface ApplicationRuntime {
+  readonly scanEvidence: ScanEvidenceService;
   readonly applications: ApplicationService;
   readonly assessments: AssessmentService;
   readonly assessmentWorker: AssessmentWorker;
@@ -64,6 +68,7 @@ export async function createApplicationRuntime(
   const supplyChain = supplyChainRequired ? new TrivySupplyChainScanner({
     image: process.env.TRIVY_SCANNER_IMAGE!, network: process.env.TRIVY_SCANNER_NETWORK!,
     evidenceRoot: process.env.SUPPLY_CHAIN_EVIDENCE_ROOT!,
+    cacheRoot: process.env.TRIVY_CACHE_ROOT || join(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT!, "scanner-cache"),
   }) : undefined;
   const stepUpContexts = parseStepUpAuthenticationContexts(
     process.env.STEP_UP_AUTHENTICATION_CONTEXTS ??
@@ -133,6 +138,7 @@ export async function createApplicationRuntime(
     const releases = new InMemoryReleaseRepository(audit);
     const engine = new ManifestAssessmentEngine(sourceRepository);
     return {
+      scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
       applications: new ApplicationService(
         applications,
         audit,
@@ -169,6 +175,7 @@ export async function createApplicationRuntime(
   const releases = new PostgresReleaseRepository(db);
   const engine = new ManifestAssessmentEngine(sourceRepository);
   return {
+    scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
     applications: new ApplicationService(
       applications,
       new PostgresAuditRepository(db),

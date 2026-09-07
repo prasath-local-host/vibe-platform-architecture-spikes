@@ -34,6 +34,8 @@ describe("OpenAPI generation", () => {
       "/companies/{companyId}/applications/{applicationId}/builds/{buildId}",
       "/companies/{companyId}/applications/{applicationId}/releases",
       "/companies/{companyId}/applications/{applicationId}/releases/{releaseId}",
+      "/companies/{companyId}/applications/{applicationId}/security-scans",
+      "/companies/{companyId}/applications/{applicationId}/security-scans/{scanId}",
     ];
     expect(Object.keys(document.paths)).toEqual(paths);
     for (const path of Object.values(document.paths)) {

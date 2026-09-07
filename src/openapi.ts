@@ -102,6 +102,27 @@ export class BuildRecordResponse {
   @ApiPropertyOptional({ type: String, format: "date-time" }) completedAt?: string;
 }
 
+export class ScanFindingResponse {
+  @ApiProperty({ type: String }) id!: string;
+  @ApiProperty({ type: [String] }) severities!: string[];
+}
+export class ScanSummaryResponse {
+  @ApiProperty({ type: String, format: "uuid" }) id!: string;
+  @ApiProperty({ type: String }) companyId!: string;
+  @ApiProperty({ type: String }) entityId!: string;
+  @ApiProperty({ type: String }) identity!: string;
+  @ApiProperty({ type: String, enum: ["fs", "image"] }) kind!: string;
+  @ApiProperty({ type: String, enum: ["approved", "rejected"] }) status!: string;
+  @ApiProperty({ type: String, format: "date-time" }) scannedAt!: string;
+  @ApiProperty({ type: String }) scannerImage!: string;
+  @ApiProperty({ type: String }) policy!: string;
+  @ApiProperty({ type: Number }) componentCount!: number;
+  @ApiProperty({ type: [ScanFindingResponse] }) findings!: ScanFindingResponse[];
+}
+export class ScanDetailResponse extends ScanSummaryResponse {
+  @ApiProperty({ type: "object", additionalProperties: true, description: "Complete saved CycloneDX report." }) report!: Record<string, unknown>;
+}
+
 export class CreateReleaseRequest {
   @ApiProperty({ type: String, format: "uuid", description: "Completed build whose verified artifact will be deployed." })
   buildId!: string;

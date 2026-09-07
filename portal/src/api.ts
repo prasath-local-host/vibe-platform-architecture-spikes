@@ -17,6 +17,20 @@ export interface Assessment {
 
 let csrfToken = "";
 
+export interface SecurityScan {
+  readonly id: string;
+  readonly entityId: string;
+  readonly identity: string;
+  readonly kind: "fs" | "image";
+  readonly status: "approved" | "rejected";
+  readonly scannedAt: string;
+  readonly scannerImage: string;
+  readonly policy: string;
+  readonly componentCount: number;
+  readonly findings: readonly { readonly id: string; readonly severities: readonly string[] }[];
+}
+export interface SecurityScanDetail extends SecurityScan { readonly report: Record<string, unknown> }
+
 export interface BrowserIdentity { readonly subject: string; readonly displayName: string; readonly csrfToken: string }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -35,6 +49,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const portalApi = {
+  securityScans: (companyId: string, applicationId: string) => request<SecurityScan[]>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/security-scans`),
+  securityScan: (companyId: string, applicationId: string, scanId: string) => request<SecurityScanDetail>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/security-scans/${encodeURIComponent(scanId)}`),
   session: async () => {
     const response = await fetch("/auth/session", { credentials: "same-origin" });
     if (response.status === 401) return undefined;
