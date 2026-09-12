@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "policyVersion": "1.0.0",
+  "policyVersion": "1.1.0",
   "profile": "nextjs-postgresql-v1",
   "runtime": "node24",
   "language": "typescript-strict",

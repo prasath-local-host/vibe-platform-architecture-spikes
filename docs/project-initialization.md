@@ -28,6 +28,14 @@ The canonical files are in `templates/nextjs-postgresql/`:
 - `vcp.project.json`: Node.js 24 / TypeScript / Next.js App Router / React / PostgreSQL 17 profile.
 - `README.md` and `.gitignore`: initialization guidance and exclusions.
 
+Policy 1.1.0 supports any AI coding assistant. Its first-action instructions require the assistant
+to create its own project-local native VCP skill or instruction adapter, retaining all canonical
+restrictions. Tools without native support produce `VCP_SKILL.md` for manual session loading.
+The starter README includes a prompt the human can give any AI; no universal automatic file
+discovery is assumed. The assistant must explain activation, preserve existing instructions,
+and refresh copied rules when the canonical policy/profile changes. Coding assistant choice
+does not authorize adding a new AI provider to the deployed application.
+
 New apps have no external service approval by default. VCP must approve and configure SMTP, AI,
 storage, or other integrations for each project. Application-specific business rules belong in
 separate files. The source ZIP's former Supabase/Netlify setup is not an approved new-app profile.

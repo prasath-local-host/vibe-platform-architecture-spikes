@@ -1,7 +1,42 @@
 # VCP application rules
 
-Policy version: 1.0.0. Read this file and `vcp.project.json` before changing this project.
+Policy version: 1.1.0. Read this file and `vcp.project.json` before changing this project.
 These rules apply to every coding agent and human contributor working on the application.
+
+## First action for every AI coding tool
+
+The human may use any AI model or coding tool. The infrastructure profile governs the application
+you build, not the human's choice of coding assistant. Choosing an assistant does not authorize
+adding that assistant's provider or services to the application.
+
+Before implementation, create or update your own project-local VCP skill/instruction file:
+
+1. Read this entire policy and `vcp.project.json`. Identify the instruction or skill mechanism
+   supported by your current coding tool. Use its documented format and activation rules;
+   do not guess filenames or claim an arbitrary Markdown file will load automatically.
+2. If your tool supports skills, create a dedicated VCP project skill in its native skill format.
+   If it supports only project rules/instructions, create a dedicated VCP instruction adapter.
+   If it supports neither, create `VCP_SKILL.md` for the human to attach or paste into each session.
+   If you cannot write files, provide the complete file content and exact placement/loading steps.
+3. Make the adapter apply to all work in this project. Require reading `AGENTS.md` and
+   `vcp.project.json` at the start of every session and before architecture/dependency changes.
+   A skill invoked only on demand is insufficient: add the tool's supported always-loaded
+   instruction entry point, or explain the manual loading step the human must repeat.
+4. Reference these canonical files using the tool's supported import mechanism where possible.
+   If imports are unavailable, include the complete policy and project profile in the skill file,
+   identify their source paths and policy version, and require refreshing the copy when they change.
+   Preserve every infrastructure restriction, security rule and VCP escalation requirement.
+5. Keep this adapter project-local and version-controlled. Preserve unrelated existing instructions;
+   do not overwrite the canonical policy/profile, weaken restrictions, change global user settings,
+   install plugins, add dependencies, or disclose secrets to create it. If the tool already loads
+   `AGENTS.md`, retain it as the canonical entry point instead of replacing it with generated content.
+6. Verify the generated content matches the canonical rules. Tell the human which file you created,
+   how it is loaded, and whether automatic loading was actually verified. Resolve conflicting
+   instructions with the VCP team; never treat the generated skill as a new infrastructure approval.
+
+Creating or refreshing this faithful adapter is allowed without requesting a new infrastructure
+approval. It must always tell the human to contact the VCP team before unsupported implementation.
+After switching AI tools, repeat this setup for the new tool; do not assume it reads another tool's files.
 
 ## Infrastructure scope
 
