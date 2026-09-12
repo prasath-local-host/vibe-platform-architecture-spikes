@@ -295,6 +295,21 @@ class ControlPlaneMigrationProvider implements MigrationProvider {
       "004_immutable_assessment_source": immutableAssessmentSourceSchema,
       "005_asynchronous_builds": asynchronousBuildSchema,
       "006_test_releases": testReleaseSchema,
+      "008_company_project_setup": {
+        async up(db) {
+          await sql`create table company_project_setup (
+            company_id varchar(100) primary key references companies(id), organization_id bigint unique, record jsonb not null
+          )`.execute(db);
+          await sql`create table project_setup_events (
+            id bigserial primary key, company_id varchar(100) not null references companies(id),
+            actor_subject text not null, action text not null, occurred_at timestamptz not null default now(), record jsonb not null
+          )`.execute(db);
+        },
+        async down(db) {
+          await db.schema.dropTable("project_setup_events").execute();
+          await db.schema.dropTable("company_project_setup").execute();
+        },
+      },
       "007_demo_pipeline_runs": {
         async up(db) {
           await db.schema.createTable("demo_pipeline_runs")

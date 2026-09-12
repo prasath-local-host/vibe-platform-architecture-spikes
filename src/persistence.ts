@@ -1,4 +1,8 @@
 import { ApplicationService } from "./application-service.js";
+import { ProjectProvisioningService } from "./project-provisioning-service.js";
+import { PostgresProjectStore } from "./postgres-project-store.js";
+import { GitHubProjectGateway } from "./github-project-gateway.js";
+import { NextPostgresProjectTemplate } from "./project-template.js";
 import { DemoPipelineService, GitHubPipelineGateway, PostgresPipelineStore, pipelineConfigFromEnvironment } from "./demo-pipeline.js";
 import { AssessmentService, AssessmentWorker } from "./assessment-service.js";
 import { createDatabase } from "./database.js";
@@ -46,6 +50,7 @@ import { ScanEvidenceService } from "./scan-evidence-service.js";
 import { FilesystemScanEvidenceReader } from "./filesystem-scan-evidence.js";
 
 export interface ApplicationRuntime {
+  readonly projectProvisioning: ProjectProvisioningService;
   readonly demoPipeline: DemoPipelineService;
   readonly scanEvidence: ScanEvidenceService;
   readonly applications: ApplicationService;
@@ -63,6 +68,10 @@ export async function createApplicationRuntime(
   connectionString: string | undefined,
 ): Promise<ApplicationRuntime> {
   const logger = new StructuredLogger();
+  const projectSetupEnabled = process.env.GITHUB_PROJECT_CREATION_ENABLED === "true";
+  if (projectSetupEnabled && (!connectionString || !process.env.VCP_GITHUB_APP_ID || !process.env.VCP_GITHUB_APP_PRIVATE_KEY_FILE)) {
+    throw new Error("Project creation requires PostgreSQL, VCP_GITHUB_APP_ID, and VCP_GITHUB_APP_PRIVATE_KEY_FILE");
+  }
   const pipelineConfig = pipelineConfigFromEnvironment();
   if (pipelineConfig && !connectionString) throw new Error("Demo pipeline requires PostgreSQL persistence");
   const supplyChainRequired = process.env.SUPPLY_CHAIN_SCANNING_ENABLED === "true" || process.env.NODE_ENV === "production";
@@ -142,6 +151,7 @@ export async function createApplicationRuntime(
     const releases = new InMemoryReleaseRepository(audit);
     const engine = new ManifestAssessmentEngine(sourceRepository);
     return {
+      projectProvisioning: new ProjectProvisioningService(new ApplicationService(applications, audit, logger)),
       demoPipeline: new DemoPipelineService(applications),
       scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
       applications: new ApplicationService(
@@ -180,6 +190,10 @@ export async function createApplicationRuntime(
   const releases = new PostgresReleaseRepository(db);
   const engine = new ManifestAssessmentEngine(sourceRepository);
   return {
+    projectProvisioning: new ProjectProvisioningService(new ApplicationService(applications, new PostgresAuditRepository(db), logger),
+      new PostgresProjectStore(db),
+      projectSetupEnabled ? new GitHubProjectGateway(process.env.VCP_GITHUB_APP_ID!, process.env.VCP_GITHUB_APP_PRIVATE_KEY_FILE!) : undefined,
+      projectSetupEnabled ? new NextPostgresProjectTemplate() : undefined),
     demoPipeline: new DemoPipelineService(applications, new PostgresPipelineStore(db), pipelineConfig, pipelineConfig ? new GitHubPipelineGateway(pipelineConfig) : undefined),
     scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
     applications: new ApplicationService(

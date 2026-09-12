@@ -1,4 +1,6 @@
 import { HttpException } from "@nestjs/common";
+import { ProjectProvisioningController } from "../src/project-provisioning-controller.js";
+import { ProjectProvisioningService } from "../src/project-provisioning-service.js";
 import { DemoPipelineController } from "../src/demo-pipeline-controller.js";
 import { DemoPipelineService } from "../src/demo-pipeline.js";
 import { NestFactory } from "@nestjs/core";
@@ -90,6 +92,15 @@ describe("documented route authorization contract", () => {
     const releaseId = "44444444-4444-4444-8444-444444444444";
 
     operations = [
+      ...(() => {
+        const setup = new ProjectProvisioningController(new ProjectProvisioningService(new ApplicationService(applicationRepository, audit)), identity);
+        return [
+          { method: "get" as const, path: "/companies/{companyId}/project-setup", invoke: (headers: Record<string, string | undefined>) => setup.snapshot("company-b", headers.authorization) },
+          { method: "post" as const, path: "/companies/{companyId}/project-setup/organization", invoke: (headers: Record<string, string | undefined>) => setup.organization("company-b", headers.authorization, { slug: "company" }) },
+          { method: "post" as const, path: "/companies/{companyId}/project-setup/organization/approve", invoke: (headers: Record<string, string | undefined>) => setup.approve("company-b", headers.authorization, { slug: "company", approvalReference: "ticket" }) },
+          { method: "post" as const, path: "/companies/{companyId}/project-setup/projects", invoke: (headers: Record<string, string | undefined>) => setup.create("company-b", headers.authorization, { name: "App", repositoryName: "app", idempotencyKey: "request-key" }) },
+        ];
+      })(),
       { method: "get", path: "/companies/{companyId}/applications/{applicationId}/demo-pipeline", invoke: headers => pipeline.list("company-b", applicationId, headers) },
       { method: "get", path: "/companies/{companyId}/applications/{applicationId}/demo-pipeline/source", invoke: headers => pipeline.latest("company-b", applicationId, headers) },
       { method: "post", path: "/companies/{companyId}/applications/{applicationId}/demo-pipeline", invoke: headers => pipeline.dispatch("company-b", applicationId, headers, {}) },

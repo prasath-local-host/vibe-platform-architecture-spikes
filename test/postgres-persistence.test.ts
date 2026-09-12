@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
+import { PostgresProjectStore } from "../src/postgres-project-store.js";
 import { ApplicationService } from "../src/application-service.js";
 import { AssessmentService, AssessmentWorker } from "../src/assessment-service.js";
 import { BuildJobService, BuildJobWorker } from "../src/build-job-service.js";
@@ -28,6 +29,8 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
   beforeAll(async () => {
     db = createDatabase(databaseUrl!);
     await migrateToLatest(db);
+    await sql`delete from project_setup_events`.execute(db);
+    await sql`delete from company_project_setup`.execute(db);
     await db.deleteFrom("audit_events").execute();
     await db.deleteFrom("builds").execute();
     await db.deleteFrom("assessments").execute();
@@ -47,6 +50,24 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence", () => {
       new PostgresAuditRepository(db),
     );
   }
+
+  it("persists setup checkpoints, serializes mutations, and rejects duplicate organization ownership atomically", async () => {
+    const store = new PostgresProjectStore(db);
+    await store.exclusive("setup-company-a", async (state, save) => {
+      state.organization = { slug: "company", status: "verified", requestedBy: "alice", organizationId: 123, installationId: 456 };
+      await save("organization.verified", { subject: "ops", role: "operator" });
+      await expect(new PostgresProjectStore(db).exclusive("setup-company-a", async () => undefined)).rejects.toThrow(/running/);
+    });
+    expect((await new PostgresProjectStore(db).read("setup-company-a")).organization?.organizationId).toBe(123);
+    await expect(store.exclusive("setup-company-b", async (state, save) => {
+      state.organization = { slug: "company", status: "verified", requestedBy: "other", organizationId: 123, installationId: 456 };
+      await save("organization.verified", { subject: "ops", role: "operator" });
+    })).rejects.toThrow(/another company/);
+    expect((await store.read("setup-company-b")).organization).toBeUndefined();
+    expect((await sql<{ count: string }>`select count(*) from project_setup_events where company_id = 'setup-company-b'`.execute(db)).rows[0]?.count).toBe("0");
+    // An error releases the pinned session lock, so subsequent work can continue.
+    await store.exclusive("setup-company-b", async () => undefined);
+  });
 
   it("persists applications and audit evidence across service restarts", async () => {
     await service().register({

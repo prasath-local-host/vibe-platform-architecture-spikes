@@ -6,7 +6,14 @@ Evidence-producing experiments for the Vibe Coding Platform architecture. This r
 
 `VIBE-2` validates the smallest control-plane vertical slice. The current checkpoint proves company-scoped authorization, transactionally idempotent PostgreSQL writes, a restart-safe asynchronous assessment queue, and attributable audit evidence. Synthetic request headers are deliberately temporary; federated identity remains required before the spike can reach a decision.
 
-## Run
+## New company projects
+
+The portal can onboard a company GitHub organization and create private application repositories
+with reusable VCP agent instructions and a PostgreSQL profile. See [project initialization](docs/project-initialization.md)
+for the workflow, GitHub App configuration, recovery and current limitations. This feature is disabled
+until the operator configures its credentials; repository creation does not provision or deploy the application.
+
+## Run locally
 
 ```bash
 corepack enable

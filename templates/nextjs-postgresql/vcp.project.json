@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "1.0.0",
+  "profile": "nextjs-postgresql-v1",
+  "runtime": "node24",
+  "language": "typescript-strict",
+  "framework": "nextjs-app-router",
+  "frameworkMajor": 15,
+  "ui": "react",
+  "uiMajor": 18,
+  "styling": "tailwindcss3",
+  "database": "postgresql17",
+  "databaseDriver": "pg",
+  "architecture": "single-application-server",
+  "packageManager": "npm",
+  "deploymentOwner": "VCP",
+  "provisioningStatus": "requires-vcp-setup",
+  "externalServices": [],
+  "additionalInfrastructure": [],
+  "support": "Contact the VCP team through your established company support channel"
+}

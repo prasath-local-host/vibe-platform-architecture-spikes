@@ -61,6 +61,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const portalApi = {
+  projectSetup: (companyId: string) => request<ProjectSetup>(`/companies/${encodeURIComponent(companyId)}/project-setup`),
+  requestOrganization: (companyId: string, slug: string) => request<ProjectSetup>(`/companies/${encodeURIComponent(companyId)}/project-setup/organization`, { method: "POST", body: JSON.stringify({ slug }) }),
+  approveOrganization: (companyId: string, slug: string, approvalReference: string) => request<ProjectSetup>(`/companies/${encodeURIComponent(companyId)}/project-setup/organization/approve`, { method: "POST", body: JSON.stringify({ slug, approvalReference }) }),
+  createProject: (companyId: string, command: { name: string; repositoryName: string; idempotencyKey: string }) => request<Application>(`/companies/${encodeURIComponent(companyId)}/project-setup/projects`, { method: "POST", body: JSON.stringify(command) }),
   pipeline: (companyId: string, applicationId: string) => request<PipelineSnapshot>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/demo-pipeline`),
   pipelineSource: (companyId: string, applicationId: string) => request<{ sourceRevision: string }>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/demo-pipeline/source`),
   pipelineDispatch: (companyId: string, applicationId: string, command: { kind: "build" | "stage" | "prod"; sourceRevision?: string; buildId?: string; idempotencyKey: string }) => request<PipelineRun>(`/companies/${encodeURIComponent(companyId)}/applications/${encodeURIComponent(applicationId)}/demo-pipeline`, { method: "POST", body: JSON.stringify(command) }),
@@ -90,6 +94,12 @@ export const portalApi = {
       body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), sourceRevision }),
     }),
 };
+
+export interface ProjectSetup {
+  configured: boolean;
+  organization: { slug: string; status: "pending" | "verified" } | null;
+  projects: { id: string; name: string; repositoryName: string; idempotencyKey: string; status: "creating" | "initializing" | "ready"; repositoryUrl?: string }[];
+}
 
 export interface PipelineRun {
   id: string; kind: "build" | "stage" | "prod"; sourceRevision: string; buildId: string | null;

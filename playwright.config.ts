@@ -11,7 +11,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 1100 },
   },
   webServer: {
-    command: "pnpm exec vite --config portal/vite.config.ts --port 5178 --host 127.0.0.1 --strictPort",
+    command: "node node_modules/vite/bin/vite.js --config portal/vite.config.ts --port 5178 --host 127.0.0.1 --strictPort",
     url: "http://127.0.0.1:5178/portal/",
     reuseExistingServer: false,
   },

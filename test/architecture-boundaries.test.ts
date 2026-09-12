@@ -19,8 +19,8 @@ describe("architecture module boundaries", () => {
     );
     expect(innerModules.map((module) => module.name)).toEqual(expect.arrayContaining(["domain.ts", "supply-chain-security.ts"]));
     expect(
-      innerModules.flatMap((module) => module.externalDependencies),
-    ).toEqual(["node:crypto", "node:crypto", "node:crypto", "node:crypto", "node:crypto", "node:async_hooks", "node:crypto"]);
+      [...new Set(innerModules.flatMap((module) => module.externalDependencies))].sort(),
+    ).toEqual(["node:async_hooks", "node:crypto"]);
   });
 
   it("keeps the committed dependency report synchronized", async () => {

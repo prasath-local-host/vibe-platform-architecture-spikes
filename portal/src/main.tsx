@@ -5,6 +5,7 @@ import { MemorySession, type PortalRole, type PortalSession } from "./auth-sessi
 import "./styles.css";
 import { SecurityScans } from "./security-scans";
 import { DemoPipeline } from "./demo-pipeline";
+import { ProjectSetup } from "./project-setup";
 
 const authSession = new MemorySession();
 
@@ -113,10 +114,11 @@ function Portal({ session, onSignOut }: { session: PortalSession; onSignOut: () 
       <div className="aside-footer"><span>{session.role === "operator" ? "LocalHost operator" : "Company user"}</span><strong>{session.subject}</strong><button onClick={onSignOut}>Sign out</button></div>
     </aside>
     <main className="workspace">
-      <header><div><span className="eyebrow blue">CONTROL PLANE</span><h1>{session.role === "operator" ? "Customer applications" : "Your applications"}</h1><p>{session.role === "operator" ? "Review applications and readiness by customer." : `Manage AI-built applications for ${companyId}.`}</p></div><button className="primary" onClick={() => setShowRegister(true)}>Register application</button></header>
+      <header><div><span className="eyebrow blue">CONTROL PLANE</span><h1>{session.role === "operator" ? "Customer applications" : "Your applications"}</h1><p>{session.role === "operator" ? "Review applications and readiness by customer." : `Manage AI-built applications for ${companyId}.`}</p></div><button className="primary" onClick={() => setShowRegister(true)}>Connect existing repository</button></header>
       {session.role === "operator" && <section className="company-switcher card"><label>Customer<input value={companyInput} onChange={(event) => setCompanyInput(event.target.value)} /></label><button onClick={() => { setSelected(undefined); setCompanyId(companyInput.trim()); }}>Open customer</button><span>Currently viewing <strong>{companyId}</strong></span></section>}
       <section className="metrics"><article><span>Applications</span><strong>{applications.length}</strong><small>Registered for this customer</small></article><article><span>Selected assessments</span><strong>{assessments.length}</strong><small>Queue and completion history</small></article><article><span>Platform status</span><strong>Not monitored</strong><small>Database and worker health are not reported by this view.</small></article></section>
       {error && <div className="error">{error}</div>}
+      <ProjectSetup key={`setup:${companyId}`} companyId={companyId} operator={session.role === "operator"} onCreated={loadApplications} />
       <section className="content-grid">
         <div className="card table-card"><div className="section-title"><div><h2>Applications</h2><p>Repositories managed through the control plane.</p></div><button onClick={() => void loadApplications()}>Refresh</button></div>
           {loading ? <p className="empty">Loading applications…</p> : applications.length === 0 ? <p className="empty">No applications registered for this customer.</p> : <div className="app-list">{applications.map((application) => <button key={application.id} className={selected?.id === application.id ? "app-row selected" : "app-row"} onClick={() => setSelected(application)}><span className="app-icon">{application.name.slice(0, 1)}</span><span><strong>{application.name}</strong><small>{application.repositoryUrl}</small></span><span className="badge">Connected</span></button>)}</div>}

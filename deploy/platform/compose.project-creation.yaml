@@ -1,0 +1,15 @@
+# Optional overlay. The operator provides a PEM outside source control, readable by UID 1000.
+# docker compose -f compose.yaml -f compose.project-creation.yaml up -d --build platform
+services:
+  platform:
+    environment:
+      GITHUB_PROJECT_CREATION_ENABLED: "true"
+      VCP_GITHUB_APP_ID: ${VCP_GITHUB_APP_ID:?Configure the platform GitHub App ID}
+      VCP_GITHUB_APP_PRIVATE_KEY_FILE: /run/secrets/vcp-github-app.pem
+    volumes:
+      - type: bind
+        source: ${VCP_GITHUB_APP_PRIVATE_KEY_FILE:?Provide an absolute path to the operator-managed GitHub App PEM}
+        target: /run/secrets/vcp-github-app.pem
+        read_only: true
+        bind:
+          create_host_path: false

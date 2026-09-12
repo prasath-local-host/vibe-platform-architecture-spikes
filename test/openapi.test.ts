@@ -38,6 +38,10 @@ describe("OpenAPI generation", () => {
       "/companies/{companyId}/applications/{applicationId}/security-scans/{scanId}",
       "/companies/{companyId}/applications/{applicationId}/demo-pipeline",
       "/companies/{companyId}/applications/{applicationId}/demo-pipeline/source",
+      "/companies/{companyId}/project-setup",
+      "/companies/{companyId}/project-setup/organization",
+      "/companies/{companyId}/project-setup/organization/approve",
+      "/companies/{companyId}/project-setup/projects",
     ];
     expect(Object.keys(document.paths)).toEqual(paths);
     for (const path of Object.values(document.paths)) {

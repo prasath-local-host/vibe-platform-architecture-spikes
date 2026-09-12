@@ -21,3 +21,7 @@
 .pipeline-history a { color: #1260c4; margin-left: auto; }
 .pipeline-confirm { padding: 18px; border: 1px solid #9dbdf0; border-radius: 12px; background: #f0f6ff; }
 button:disabled { cursor: not-allowed; opacity: .5; }
+.project-setup { padding: 28px; margin: 24px 0; }
+.project-setup form { display: grid; gap: 16px; max-width: 620px; margin: 20px 0; }
+.project-setup label { display: grid; gap: 8px; }
+.project-setup p { max-width: 90ch; line-height: 1.6; }
