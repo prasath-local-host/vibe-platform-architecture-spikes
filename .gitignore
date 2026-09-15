@@ -6,3 +6,5 @@ coverage/
 .env
 .pnpm-store/
 *.log
+__pycache__/
+*.pyc

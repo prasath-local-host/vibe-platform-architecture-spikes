@@ -82,6 +82,8 @@ services:
     env_file:
       - path: ./private/github.env
         required: false
+      - path: ./private/daylist.env
+        required: false
     environment:
       NODE_ENV: development
       LISTEN_HOST: 0.0.0.0

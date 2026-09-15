@@ -51,6 +51,7 @@ export class PostgresPipelineStore implements PipelineStore {
 export interface PipelineConfig {
   token: string; companyId: string; applicationId: string; sourceRepository: string;
   workflowRepository: string; workflowBranch: string;
+  workflowPrefix?: "demo" | "todo";
 }
 export interface RemoteRun { id: number; status: string; conclusion: string | null; path: string; head_branch: string; event: string; display_title: string }
 export interface PipelineGateway {
@@ -59,7 +60,7 @@ export interface PipelineGateway {
   read(run: PipelineRun): Promise<RemoteRun | undefined>;
   artifactExists(runId: string): Promise<boolean>;
 }
-const workflow = (kind: PipelineKind) => kind === "build" ? "demo-build.yml" : "demo-deploy.yml";
+const workflow = (kind: PipelineKind, prefix = "demo") => `${prefix}-${kind === "build" ? "build" : "deploy"}.yml`;
 export const pipelineTitle = (run: PipelineRun) => `VCP ${run.kind} ${run.id}`;
 export class GitHubPipelineGateway implements PipelineGateway {
   constructor(private readonly config: PipelineConfig, private readonly fetcher: typeof fetch = fetch) {}
@@ -83,7 +84,7 @@ export class GitHubPipelineGateway implements PipelineGateway {
     return commit.sha as string;
   }
   async dispatch(run: PipelineRun, buildRunId?: string) {
-    const response = await this.api(this.config.workflowRepository, `actions/workflows/${workflow(run.kind)}/dispatches`, {
+    const response = await this.api(this.config.workflowRepository, `actions/workflows/${workflow(run.kind, this.config.workflowPrefix)}/dispatches`, {
       ref: this.config.workflowBranch,
       inputs: { portal_request_id: run.id, ...(run.kind === "build" ? { source_revision: run.sourceRevision, expected_source_repository: this.config.sourceRepository } : { build_run_id: buildRunId, environment: run.kind }) },
     });
@@ -94,12 +95,12 @@ export class GitHubPipelineGateway implements PipelineGateway {
     if (run.runId) remote = await this.api(this.config.workflowRepository, `actions/runs/${run.runId}`);
     else {
       // Recover a lost dispatch response by exact nonce, never by "latest run".
-      const data = await this.api(this.config.workflowRepository, `actions/workflows/${workflow(run.kind)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(this.config.workflowBranch)}&per_page=100&created=${encodeURIComponent(">=" + run.createdAt)}`);
+      const data = await this.api(this.config.workflowRepository, `actions/workflows/${workflow(run.kind, this.config.workflowPrefix)}/runs?event=workflow_dispatch&branch=${encodeURIComponent(this.config.workflowBranch)}&per_page=100&created=${encodeURIComponent(">=" + run.createdAt)}`);
       const matches = (data?.workflow_runs ?? []).filter((item: RemoteRun) => item.display_title === pipelineTitle(run));
       if (matches.length > 1) throw new PipelineError(409, "Multiple matching runs need operator review.");
       remote = matches[0];
     }
-    if (remote && (remote.path !== `.github/workflows/${workflow(run.kind)}` || remote.event !== "workflow_dispatch" ||
+    if (remote && (remote.path !== `.github/workflows/${workflow(run.kind, this.config.workflowPrefix)}` || remote.event !== "workflow_dispatch" ||
       remote.head_branch !== this.config.workflowBranch || remote.display_title !== pipelineTitle(run) || !Number.isSafeInteger(remote.id))) {
       throw new PipelineError(409, "Workflow provenance does not match this application request.");
     }
@@ -189,11 +190,41 @@ export class DemoPipelineService {
     return dispatched;
   }
 }
-export function pipelineConfigFromEnvironment(): PipelineConfig | undefined {
-  if (process.env.DEMO_PIPELINE_ENABLED !== "true") return undefined;
-  const config = { token: process.env.DEMO_PIPELINE_TOKEN ?? "", companyId: process.env.DEMO_PIPELINE_COMPANY_ID ?? "",
-    applicationId: process.env.DEMO_PIPELINE_APPLICATION_ID ?? "", sourceRepository: process.env.DEMO_PIPELINE_SOURCE_REPOSITORY ?? "",
-    workflowRepository: process.env.DEMO_PIPELINE_WORKFLOW_REPOSITORY ?? "", workflowBranch: process.env.DEMO_PIPELINE_WORKFLOW_BRANCH ?? "" };
+// Each binding gets its own service and gateway; no mutable request-scoped selection.
+export class MultiApplicationPipelineService extends DemoPipelineService {
+  private readonly bindings = new Map<string, DemoPipelineService>();
+  private readonly fallback: DemoPipelineService;
+  constructor(applications: ApplicationRepository, store: PipelineStore, configs: PipelineConfig[],
+    gatewayFactory: (config: PipelineConfig) => PipelineGateway = config => new GitHubPipelineGateway(config)) {
+    super(applications);
+    this.fallback = new DemoPipelineService(applications);
+    for (const config of configs) {
+      const key = JSON.stringify([config.companyId, config.applicationId]);
+      if (this.bindings.has(key)) throw new Error("Duplicate demo application pipeline binding");
+      this.bindings.set(key, new DemoPipelineService(applications, store, config, gatewayFactory(config)));
+    }
+  }
+  private select(companyId: string, applicationId: string) {
+    return this.bindings.get(JSON.stringify([companyId, applicationId])) ?? this.fallback;
+  }
+  override list(actor: Actor, companyId: string, applicationId: string) {
+    return this.select(companyId, applicationId).list(actor, companyId, applicationId);
+  }
+  override latest(actor: Actor, companyId: string, applicationId: string) {
+    return this.select(companyId, applicationId).latest(actor, companyId, applicationId);
+  }
+  override dispatch(actor: Actor, companyId: string, applicationId: string, command: Parameters<DemoPipelineService["dispatch"]>[3]) {
+    return this.select(companyId, applicationId).dispatch(actor, companyId, applicationId, command);
+  }
+}
+
+export function pipelineConfigFromEnvironment(prefix: "DEMO_PIPELINE" | "DAYLIST_PIPELINE" = "DEMO_PIPELINE"): PipelineConfig | undefined {
+  const value = (key: string) => process.env[`${prefix}_${key}`] ?? "";
+  if (value("ENABLED") !== "true") return undefined;
+  const config: PipelineConfig = { token: value("TOKEN"), companyId: value("COMPANY_ID"),
+    applicationId: value("APPLICATION_ID"), sourceRepository: value("SOURCE_REPOSITORY"),
+    workflowRepository: value("WORKFLOW_REPOSITORY"), workflowBranch: value("WORKFLOW_BRANCH"),
+    workflowPrefix: prefix === "DAYLIST_PIPELINE" ? "todo" : "demo" };
   if (Object.values(config).some(value => !value) || !/^[0-9a-f-]{36}$/.test(config.applicationId) ||
     ![config.sourceRepository, config.workflowRepository].every(repo => /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo))) {
     throw new Error("Demo pipeline requires an explicit application/company binding, repositories, branch and private token.");

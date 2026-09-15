@@ -48,6 +48,23 @@ class ReleasePolicyTests(unittest.TestCase):
     def test_valid_manifest(self):
         module.validate_manifest(self.manifest)
 
+    def test_daylist_uses_separate_ports_names_and_artifact_binding(self):
+        self.assertEqual(module.deployment_settings('daylist'), ('vcp-daylist', 3111, 3110, '/'))
+        self.assertEqual(module.deployment_settings('demo'), ('vcp-demo', 3101, 3100, '/login'))
+        with self.assertRaises(ValueError):
+            module.validate_profile_manifest(self.manifest, 'daylist')
+        daylist = {**self.manifest, 'deployment_profile': 'daylist', 'source_repository': 'prasath-local-host/vcp-demo-todo'}
+        module.validate_profile_manifest(daylist, 'daylist')
+        with self.assertRaises(ValueError):
+            module.validate_profile_manifest(daylist, 'demo')
+        with patch.object(module, 'docker') as docker:
+            with self.assertRaises(ValueError):
+                module.inspect_owned('vcp-demo-stage-1-1', 'stage', 'vcp-daylist')
+            docker.assert_not_called()
+        with patch.object(module, 'docker', return_value=json.dumps([{'Config': {'Labels': {'vcp.demo.environment': 'stage'}}}])):
+            with self.assertRaisesRegex(ValueError, 'outside this application'):
+                module.inspect_owned('vcp-daylist-stage-1-1', 'stage', 'vcp-daylist')
+
     def test_untrusted_identifiers_are_rejected(self):
         for field in ['source_revision', 'image_id', 'tar_sha256', 'workflow_run_id', 'security_policy']:
             with self.assertRaises(ValueError):
@@ -133,6 +150,12 @@ class ReleasePolicyTests(unittest.TestCase):
                 docker.assert_not_called()
 
     def test_failed_replacement_restores_previous_container_and_receipt(self):
+        self._failed_replacement_restores_previous('demo')
+
+    def test_daylist_failed_replacement_restores_only_its_own_container_and_port(self):
+        self._failed_replacement_restores_previous('daylist')
+
+    def _failed_replacement_restores_previous(self, profile):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / 'secrets').mkdir()
@@ -143,9 +166,12 @@ class ReleasePolicyTests(unittest.TestCase):
             candidate.mkdir()
             (candidate / 'image.tar').write_bytes(b'fixture-image')
             manifest = {**self.manifest, 'tar_sha256': module.digest(candidate / 'image.tar')}
+            if profile == 'daylist':
+                manifest.update(deployment_profile='daylist', source_repository='prasath-local-host/vcp-demo-todo')
             (candidate / 'release.json').write_text(json.dumps(manifest))
             (root / 'state').mkdir()
-            old = 'vcp-demo-stage-1-1'
+            prefix, stage_port, _, _ = module.deployment_settings(profile)
+            old = prefix + '-stage-1-1'
             receipt = {'status': 'healthy', 'container': old, 'manifest': self.manifest}
             (root / 'state/stage.json').write_text(json.dumps(receipt))
             containers = {old: True}
@@ -154,7 +180,7 @@ class ReleasePolicyTests(unittest.TestCase):
                 if args[0] == 'inspect':
                     if args[1] not in containers:
                         raise module.subprocess.CalledProcessError(1, ['docker'])
-                    return json.dumps([{'Config': {'Labels': {'vcp.demo.environment': 'stage'}}}])
+                    return json.dumps([{'Config': {'Labels': {'vcp.demo.environment': 'stage', 'vcp.demo.application': prefix}}}])
                 if args[:2] == ('image', 'inspect'):
                     return manifest['image_id']
                 if args[0] == 'run':
@@ -172,10 +198,12 @@ class ReleasePolicyTests(unittest.TestCase):
             local_id = 'sha256:' + 'e' * 64
             with patch.object(module, 'load_verified_image', return_value=local_id), patch.object(module, 'docker', side_effect=fake_docker) as docker_mock, patch.object(module, 'check_health', side_effect=[None, RuntimeError('candidate failed'), None]):
                 with self.assertRaisesRegex(RuntimeError, 'candidate failed'):
-                    module.deploy('stage', candidate, root)
+                    module.deploy('stage', candidate, root, profile)
                 starts = [call.args for call in docker_mock.call_args_list if call.args[0] == 'run']
                 self.assertEqual(len(starts), 2)
                 self.assertTrue(all(args[-1] == local_id for args in starts))
+                self.assertEqual(starts[1][starts[1].index('-p') + 1], f'127.0.0.1:{stage_port}:3000')
+                self.assertTrue(all(args[args.index('--network') + 1] == prefix + '-stage' for args in starts))
             self.assertEqual(containers, {old: True})
             self.assertEqual(json.loads((root / 'state/stage.json').read_text()), receipt)
 

@@ -3,7 +3,7 @@ import { ProjectProvisioningService } from "./project-provisioning-service.js";
 import { PostgresProjectStore } from "./postgres-project-store.js";
 import { GitHubProjectGateway } from "./github-project-gateway.js";
 import { NextPostgresProjectTemplate } from "./project-template.js";
-import { DemoPipelineService, GitHubPipelineGateway, PostgresPipelineStore, pipelineConfigFromEnvironment } from "./demo-pipeline.js";
+import { DemoPipelineService, MultiApplicationPipelineService, PostgresPipelineStore, pipelineConfigFromEnvironment, type PipelineConfig } from "./demo-pipeline.js";
 import { AssessmentService, AssessmentWorker } from "./assessment-service.js";
 import { createDatabase } from "./database.js";
 import {
@@ -72,8 +72,9 @@ export async function createApplicationRuntime(
   if (projectSetupEnabled && (!connectionString || !process.env.VCP_GITHUB_APP_ID || !process.env.VCP_GITHUB_APP_PRIVATE_KEY_FILE)) {
     throw new Error("Project creation requires PostgreSQL, VCP_GITHUB_APP_ID, and VCP_GITHUB_APP_PRIVATE_KEY_FILE");
   }
-  const pipelineConfig = pipelineConfigFromEnvironment();
-  if (pipelineConfig && !connectionString) throw new Error("Demo pipeline requires PostgreSQL persistence");
+  const pipelineConfigs = [pipelineConfigFromEnvironment(), pipelineConfigFromEnvironment("DAYLIST_PIPELINE")]
+    .filter((config): config is PipelineConfig => Boolean(config));
+  if (pipelineConfigs.length && !connectionString) throw new Error("Demo pipeline requires PostgreSQL persistence");
   const supplyChainRequired = process.env.SUPPLY_CHAIN_SCANNING_ENABLED === "true" || process.env.NODE_ENV === "production";
   if (supplyChainRequired && (!process.env.TRIVY_SCANNER_IMAGE || !process.env.TRIVY_SCANNER_NETWORK || !process.env.SUPPLY_CHAIN_EVIDENCE_ROOT)) {
     throw new Error("Supply-chain scanning requires a pinned Trivy image, scanner network, and evidence root");
@@ -194,7 +195,7 @@ export async function createApplicationRuntime(
       new PostgresProjectStore(db),
       projectSetupEnabled ? new GitHubProjectGateway(process.env.VCP_GITHUB_APP_ID!, process.env.VCP_GITHUB_APP_PRIVATE_KEY_FILE!) : undefined,
       projectSetupEnabled ? new NextPostgresProjectTemplate() : undefined),
-    demoPipeline: new DemoPipelineService(applications, new PostgresPipelineStore(db), pipelineConfig, pipelineConfig ? new GitHubPipelineGateway(pipelineConfig) : undefined),
+    demoPipeline: new MultiApplicationPipelineService(applications, new PostgresPipelineStore(db), pipelineConfigs),
     scanEvidence: new ScanEvidenceService(new FilesystemScanEvidenceReader(process.env.SUPPLY_CHAIN_EVIDENCE_ROOT), builds, releases),
     applications: new ApplicationService(
       applications,

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { ApplicationService } from "../src/application-service.js";
 import { InMemoryApplicationRepository, InMemoryAuditRepository } from "../src/in-memory-repositories.js";
-import { DemoPipelineService, GitHubPipelineGateway, PipelineError, activeRun, pipelineTitle, type PipelineConfig, type PipelineGateway, type PipelineRun, type PipelineStore, type RemoteRun } from "../src/demo-pipeline.js";
+import { DemoPipelineService, MultiApplicationPipelineService, GitHubPipelineGateway, PipelineError, activeRun, pipelineTitle, type PipelineConfig, type PipelineGateway, type PipelineRun, type PipelineStore, type RemoteRun } from "../src/demo-pipeline.js";
 import { DemoPipelineController } from "../src/demo-pipeline-controller.js";
 import { IdentityService, InMemoryAuthorizationRepository, SpikeAccessTokenVerifier } from "../src/identity.js";
 
@@ -41,6 +41,25 @@ async function fixture() {
   return { apps, app, config, store, gateway, service, send, finish, remotes };
 }
 describe("portal demo pipeline", () => {
+  it("routes simultaneous companies to separate workflows and never shares runs or promotion evidence", async () => {
+    const f = await fixture();
+    const audit = new InMemoryAuditRepository();
+    const actorB = { ...actor, companyId: "company-b" };
+    const appB = await new ApplicationService(f.apps, audit).register({ actor: actorB, companyId: actorB.companyId, name: "Daylist", repositoryUrl: "https://github.com/example/todo", idempotencyKey: randomUUID(), correlationId: randomUUID() });
+    const configB: PipelineConfig = { ...f.config, companyId: actorB.companyId, applicationId: appB.id, sourceRepository: "example/todo", workflowPrefix: "todo" };
+    const gatewayB: PipelineGateway = { ...f.gateway, latest: vi.fn(async () => "b".repeat(40)), dispatch: vi.fn(async () => "900"), read: vi.fn(async () => undefined) };
+    const service = new MultiApplicationPipelineService(f.apps, f.store, [f.config, configB], c => c.applicationId === appB.id ? gatewayB : f.gateway);
+    const command = { kind: "build" as const, sourceRevision: revision, idempotencyKey: randomUUID() };
+    const [a, b] = await Promise.all([service.dispatch(actor, actor.companyId, f.app.id, command), service.dispatch(actorB, actorB.companyId, appB.id, command)]);
+    expect(a.applicationId).toBe(f.app.id);
+    expect(b.applicationId).toBe(appB.id);
+    expect(gatewayB.dispatch).toHaveBeenCalledTimes(1);
+    expect(f.gateway.dispatch).toHaveBeenCalledTimes(1);
+    expect((await service.list(actorB, actorB.companyId, appB.id)).runs.map(r => r.id)).toEqual([b.id]);
+    await expect(service.latest(actor, actorB.companyId, appB.id)).rejects.toThrow();
+    await expect(service.dispatch(actorB, actorB.companyId, appB.id, { kind: "stage", buildId: a.id, idempotencyKey: randomUUID() })).rejects.toMatchObject({ status: 404 });
+    expect(() => new MultiApplicationPipelineService(f.apps, f.store, [f.config, f.config])).toThrow(/Duplicate/);
+  });
   it("builds once, gates Stage, then promotes that same build to Prod", async () => {
     const f = await fixture();
     const command = { kind: "build" as const, sourceRevision: revision, idempotencyKey: randomUUID() };
@@ -103,6 +122,17 @@ describe("portal demo pipeline", () => {
   });
 });
 describe("GitHub pipeline gateway", () => {
+  it("dispatches the Daylist workflow and rejects original-demo provenance", async () => {
+    const f = await fixture();
+    const run = await f.send({ kind: "build", sourceRevision: revision, idempotencyKey: randomUUID() });
+    const fetcher = vi.fn<typeof fetch>();
+    const gateway = new GitHubPipelineGateway({ ...f.config, workflowPrefix: "todo" }, fetcher);
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ workflow_run_id: 88 })));
+    await gateway.dispatch(run);
+    expect(String(fetcher.mock.calls[0]![0])).toContain('/actions/workflows/todo-build.yml/dispatches');
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ ...f.remotes.get(run.id), id: 88 })));
+    await expect(gateway.read({ ...run, runId: '88' })).rejects.toMatchObject({ status: 409 });
+  });
   it("uses fixed HTTPS endpoints, private authorization, nonce and exact SHA inputs", async () => {
     const f = await fixture();
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ workflow_run_id: 123 }), { status: 200 }));

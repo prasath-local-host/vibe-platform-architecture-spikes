@@ -33,8 +33,11 @@ def require_stage(manifest, receipt):
 
 
 def digest(path):
+    checksum = hashlib.sha256()
     with path.open('rb') as stream:
-        return hashlib.file_digest(stream, 'sha256').hexdigest()
+        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+            checksum.update(chunk)
+    return checksum.hexdigest()
 
 
 def archive_identity(path, expected_id=None, expected_tag=None):
@@ -89,11 +92,11 @@ def archive_identity(path, expected_id=None, expected_tag=None):
         return config_id
 
 
-def load_verified_image(image_tar, manifest):
+def load_verified_image(image_tar, manifest, image_prefix='vcp-demo'):
     # Pin the input archive before asking Docker to load anything.
     if digest(image_tar) != manifest['tar_sha256']:
         raise ValueError('Artifact digest mismatch')
-    tag = 'vcp-demo:' + manifest['source_revision']
+    tag = image_prefix + ':' + manifest['source_revision']
     approved_config = archive_identity(image_tar, manifest['image_id'], tag)
     docker('load', '--input', str(image_tar))
     # Resolve the tag once, then verify and run only this immutable local ID.
@@ -110,7 +113,7 @@ def load_verified_image(image_tar, manifest):
     return local_id
 
 
-def check_health(port, revision):
+def check_health(port, revision, page='/login'):
     base = f'http://127.0.0.1:{port}'
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -125,7 +128,7 @@ def check_health(port, revision):
             with client.open(base + '/api/ready', timeout=8) as response:
                 if json.loads(response.read(65536)).get('status') != 'ready':
                     raise ValueError('Database is not ready')
-            with client.open(base + '/login', timeout=8) as response:
+            with client.open(base + page, timeout=8) as response:
                 if response.status != 200:
                     raise ValueError('Login page is not ready')
             return
@@ -135,12 +138,14 @@ def check_health(port, revision):
             time.sleep(2)
 
 
-def inspect_owned(name, environment):
-    if not re.fullmatch(r'vcp-demo-(stage|prod)-[0-9]+-[0-9]+', name):
+def inspect_owned(name, environment, prefix='vcp-demo'):
+    if not re.fullmatch(re.escape(prefix) + r'-(stage|prod)-[0-9]+-[0-9]+', name):
         raise ValueError('Invalid managed container name')
     info = json.loads(docker('inspect', name))[0]
     if info['Config']['Labels'].get('vcp.demo.environment') != environment:
         raise ValueError('Refusing to alter a container outside this environment')
+    if prefix != 'vcp-demo' and info['Config']['Labels'].get('vcp.demo.application') != prefix:
+        raise ValueError('Refusing to alter a container outside this application')
     return info
 
 
@@ -153,11 +158,32 @@ def atomic_json(path, value):
     temp.replace(path)
 
 
-def deploy(environment, candidate, root):
+def deployment_settings(profile):
+    if profile == 'demo':
+        return ('vcp-demo', 3101, 3100, '/login')
+    if profile == 'daylist':
+        return ('vcp-daylist', 3111, 3110, '/')
+    raise ValueError('Unknown deployment profile')
+
+
+def validate_profile_manifest(manifest, profile):
+    deployment_settings(profile)
+    if profile == 'daylist' and (manifest.get('deployment_profile') != 'daylist' or
+            manifest.get('source_repository') != 'prasath-local-host/vcp-demo-todo'):
+        raise ValueError('Candidate does not belong to the Daylist application')
+    if profile == 'demo' and manifest.get('deployment_profile', 'demo') != 'demo':
+        raise ValueError('Candidate does not belong to the original demo')
+
+
+def deploy(environment, candidate, root, profile='demo'):
     if environment not in ('stage', 'prod'):
         raise ValueError('Unknown environment')
     manifest = json.loads((candidate / 'release.json').read_text())
     validate_manifest(manifest)
+    validate_profile_manifest(manifest, profile)
+    prefix, stage_port, prod_port, page = deployment_settings(profile)
+    health = lambda port, revision: check_health(port, revision, page)
+    owned = lambda name, env: inspect_owned(name, env, prefix)
     image_tar = candidate / 'image.tar'
     if digest(image_tar) != manifest['tar_sha256']:
         raise ValueError('Artifact digest mismatch')
@@ -171,23 +197,24 @@ def deploy(environment, candidate, root):
         if environment == 'prod':
             stage = json.loads((state / 'stage.json').read_text())
             require_stage(manifest, stage)
-            inspect_owned(stage['container'], 'stage')
-            check_health(3101, manifest['source_revision'])
+            owned(stage['container'], 'stage')
+            health(stage_port, manifest['source_revision'])
         receipt_path = state / f'{environment}.json'
         previous = json.loads(receipt_path.read_text()) if receipt_path.exists() else None
         if previous:
-            inspect_owned(previous['container'], environment)
-        local_image_id = load_verified_image(image_tar, manifest)
-        name = f"vcp-demo-{environment}-{manifest['workflow_run_id']}-{time.time_ns()}"
-        network = f'vcp-demo-{environment}'
+            owned(previous['container'], environment)
+        local_image_id = load_verified_image(image_tar, manifest, prefix)
+        name = f"{prefix}-{environment}-{manifest['workflow_run_id']}-{time.time_ns()}"
+        network = f'{prefix}-{environment}'
         try:
             docker('network', 'inspect', network)
         except subprocess.CalledProcessError:
             docker('network', 'create', network)
-        port = 3101 if environment == 'stage' else 3100
+        port = stage_port if environment == 'stage' else prod_port
 
         def start(binding):
             docker('run', '-d', '--name', name, '--label', f'vcp.demo.environment={environment}',
+                   '--label', f'vcp.demo.application={prefix}',
                    '--restart', 'unless-stopped', '--read-only', '--cap-drop', 'ALL',
                    '--security-opt', 'no-new-privileges', '--user', '1000:1000',
                    '--pids-limit', '256', '--memory', '2g', '--cpus', '1',
@@ -204,14 +231,14 @@ def deploy(environment, candidate, root):
             match = re.fullmatch(r'127\.0\.0\.1:(\d+)', mapped)
             if not match:
                 raise ValueError('Unexpected candidate binding')
-            check_health(int(match[1]), manifest['source_revision'])
-            inspect_owned(name, environment)
+            health(int(match[1]), manifest['source_revision'])
+            owned(name, environment)
             docker('rm', '-f', name)
             if previous:
                 docker('stop', previous['container'])
             changed = True
             start(f'127.0.0.1:{port}:3000')
-            check_health(port, manifest['source_revision'])
+            health(port, manifest['source_revision'])
             receipt = {'status': 'healthy', 'manifest': manifest, 'container': name,
                        'local_image_id': local_image_id,
                        'previous_container': previous['container'] if previous else None,
@@ -221,13 +248,13 @@ def deploy(environment, candidate, root):
             print(f'{environment}: healthy, revision {manifest["source_revision"]}, local image {local_image_id}')
         except Exception:
             try:
-                inspect_owned(name, environment)
+                owned(name, environment)
                 docker('rm', '-f', name)
             except subprocess.CalledProcessError:
                 pass
             if changed and previous:
                 docker('start', previous['container'])
-                check_health(port, previous['manifest']['source_revision'])
+                health(port, previous['manifest']['source_revision'])
                 print('Previous release restored and health verified')
             raise
 
