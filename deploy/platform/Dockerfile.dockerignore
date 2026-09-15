@@ -9,5 +9,7 @@
 !test/**
 !portal
 !portal/**
+!templates
+!templates/**
 portal/node_modules
 portal/dist
